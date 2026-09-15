@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+    /* Paper & ink -- the travel-document palette */
+    --paper:       #F5F1E6;
+    --paper-white: #FFFFFF;
+    --ink:         #1C2B45;
+    --ink-muted:   #6B6455;
+    --line:        #D8CFBA;
+
+    /* Accents */
+    --stamp:       #C1440E;  /* primary action -- rust ink-stamp red */
+    --stamp-dark:  #9C350A;
+    --route:       #2F7A5C;  /* confirmed / secondary -- map green */
+    --caution:     #B3261E;  /* errors */
+    --caution-bg:  #FBEAE6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.5;
+}
+
+h1, h2, h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+}
+
+a {
+    color: var(--stamp-dark);
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    margin: 1rem 0 0.3rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    background: var(--paper-white);
+    color: var(--ink);
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--stamp);
+    outline-offset: 1px;
+    border-color: var(--stamp);
+}
+
+textarea { resize: vertical; }
+
+button, .btn-primary {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-primary {
+    display: inline-block;
+    background: var(--stamp);
+    color: #fff;
+    padding: 0.65rem 1.2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border: none;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background: var(--stamp-dark);
+}
+
+.btn-danger {
+    background: transparent;
+    color: var(--caution);
+    border: 1px solid var(--caution);
+    padding: 0.65rem 1.2rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.btn-danger:hover, .btn-danger:focus {
+    background: var(--caution-bg);
+}
+
+.form-errors {
+    background: var(--caution-bg);
+    color: var(--caution);
+    border: 1px solid var(--caution);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 1rem;
+    list-style: none;
+    font-size: 0.9rem;
+}
+
+.form-errors li + li { margin-top: 0.25rem; }

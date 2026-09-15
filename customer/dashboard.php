@@ -34,6 +34,7 @@ $statusLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Trips — TravelEase</title>
+    <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
 </head>
@@ -43,6 +44,7 @@ $statusLabels = [
             <h1>My Trips</h1>
             <div class="header-actions">
                 <span class="welcome-text">Welcome, <?= $name ?></span>
+                <a href="/profile.php" class="logout-link">Profile</a>
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
             </div>
         </header>
@@ -65,12 +67,14 @@ $statusLabels = [
                                 <?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?>
                             </span>
                         </div>
-                        <p class="trip-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
-                        <p class="trip-dates">
-                            <?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>
-                            &ndash;
-                            <?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>
-                        </p>
+                        <div class="trip-card-body">
+                            <p class="trip-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
+                            <p class="trip-dates">
+                                <?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>
+                                &ndash;
+                                <?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>
+                            </p>
+                        </div>
                     </a>
                 <?php endforeach; ?>
             </div>
