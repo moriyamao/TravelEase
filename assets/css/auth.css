@@ -1,0 +1,128 @@
+:root {
+    --te-primary: #1a5f7a;
+    --te-primary-dark: #123f52;
+    --te-error: #b3261e;
+    --te-error-bg: #fdecea;
+    --te-border: #c9d2d8;
+    --te-text: #1f2933;
+    --te-bg: #f4f7f9;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--te-bg);
+    color: var(--te-text);
+}
+
+.auth-container {
+    max-width: 400px;
+    margin: 4rem auto;
+    padding: 2rem;
+    background: #fff;
+    border: 1px solid var(--te-border);
+    border-radius: 8px;
+}
+
+.auth-container h1 {
+    font-size: 1.4rem;
+    margin: 0 0 1.5rem;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin: 1rem 0 0.25rem;
+    font-size: 0.9rem;
+}
+
+input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--te-border);
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+input:focus {
+    outline: 3px solid #7fb8d1;
+    outline-offset: 1px;
+    border-color: var(--te-primary);
+}
+
+button {
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+    background: var(--te-primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover,
+button:focus {
+    background: var(--te-primary-dark);
+}
+
+.auth-alt-action {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.auth-alt-action a {
+    color: var(--te-primary);
+}
+
+.form-errors {
+    background: var(--te-error-bg);
+    color: var(--te-error);
+    border: 1px solid var(--te-error);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 1rem;
+    list-style: none;
+    font-size: 0.9rem;
+}
+
+.form-errors li + li {
+    margin-top: 0.25rem;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #8a97a0;
+    font-size: 0.85rem;
+    margin: 1.5rem 0 1rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid var(--te-border);
+}
+
+.auth-divider span {
+    padding: 0 0.75rem;
+}
+
+#google-signin-button {
+    display: flex;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+    .auth-container {
+        margin: 1.5rem 1rem;
+        padding: 1.5rem;
+    }
+}
