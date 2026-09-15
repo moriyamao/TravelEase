@@ -2,7 +2,7 @@
 
 A web-based travel planning and booking application.
 
-## Status: Milestone 2 — Google Sign-In
+## Status: Milestone 3 — Trips (basic CRUD)
 
 This milestone establishes the project skeleton and a working, secure
 email/password authentication system with role-based routing
@@ -50,6 +50,15 @@ features exist yet — those are later milestones.
 5. Restart `php -S localhost:8000` and visit `/auth/login.php` — the
    "Sign in with Google" button should appear below the password form.
 
+## Setup: Trips (Milestone 3)
+
+Run the migration against your existing database:
+```
+mysql -u root -p travelease < database/migration_003_add_trips.sql
+```
+(Or paste its contents into phpMyAdmin's SQL tab.) Fresh installs using
+`schema.sql` already include the `trips` table.
+
 ## Architecture decisions (for Milestone 2 compatibility)
 
 - `password_hash` is nullable at the DB level (Milestone 1 code always
@@ -82,15 +91,22 @@ features exist yet — those are later milestones.
   `require_role()` guards as password-authenticated ones
 - Deliberate no-auto-link policy: an existing email/password account
   is not silently linked to a Google sign-in attempt with the same email
+- Customer can create, view, edit, and delete their own trips
+  (name, destination, dates, status, notes)
+- Every trip query is scoped to the logged-in user's `user_id` —
+  changing the `id` in a trip URL cannot show or modify another
+  customer's trip (IDOR prevention)
+- Customer dashboard now shows a real trip list instead of a stub
+  message
 
 ## What's NOT built yet
 
 - Account linking flow (letting a user manually connect Google to an
   existing password account)
 - Password reset, email verification
-- Trips, destinations, itineraries, budgets, booking requests
-- Admin user management, reporting
-- Any UI beyond bare-bones auth pages and empty dashboard stubs
+- Destinations, itineraries, budgets, booking requests
+- Staff/admin visibility into trips, admin user management, reporting
+- Any UI beyond auth pages and the customer trip list/forms
 
 ## Known limitations
 
@@ -101,6 +117,6 @@ features exist yet — those are later milestones.
 
 ## Next logical step
 
-Design and implement the `trips` table and basic trip CRUD
-(create/view/edit/delete a trip) scoped to the authenticated customer,
-with ownership checks (IDOR prevention) from the start.
+Destinations + day-by-day itinerary items scoped to a trip, still
+owned/scoped to the trip's customer. Budget fields can layer on top
+of that once itinerary items exist to attach costs to.

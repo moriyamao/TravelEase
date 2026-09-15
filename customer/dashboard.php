@@ -1,27 +1,80 @@
 <?php
 require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 require_role(['customer']);
 
+$pdo = get_db_connection();
+
+// Ownership scoping: only ever fetch trips belonging to the logged-in
+// user. There is no code path here that accepts a user_id from the
+// client (§26 -- IDOR prevention).
+$stmt = $pdo->prepare(
+    'SELECT id, name, destination, start_date, end_date, status
+     FROM trips
+     WHERE user_id = :user_id
+     ORDER BY start_date ASC'
+);
+$stmt->execute(['user_id' => current_user_id()]);
+$trips = $stmt->fetchAll();
+
 $name = htmlspecialchars($_SESSION['user_name'] ?? 'Traveler', ENT_QUOTES, 'UTF-8');
+
+$statusLabels = [
+    'planning'  => 'Planning',
+    'confirmed' => 'Confirmed',
+    'completed' => 'Completed',
+    'cancelled' => 'Cancelled',
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — TravelEase</title>
+    <title>My Trips — TravelEase</title>
     <link rel="stylesheet" href="/assets/css/dashboard.css">
+    <link rel="stylesheet" href="/assets/css/trips.css">
 </head>
 <body>
     <main class="dashboard">
         <header class="dashboard-header">
-            <h1>Welcome, <?= $name ?></h1>
-            <a href="/auth/logout.php" class="logout-link">Sign out</a>
+            <h1>My Trips</h1>
+            <div class="header-actions">
+                <span class="welcome-text">Welcome, <?= $name ?></span>
+                <a href="/auth/logout.php" class="logout-link">Sign out</a>
+            </div>
         </header>
-        <p>Your customer dashboard is set up. Trip planning, budgeting, and
-           booking features will appear here as they're built.</p>
+
+        <div class="trips-toolbar">
+            <a href="/customer/trips/create.php" class="btn-primary">+ New Trip</a>
+        </div>
+
+        <?php if (empty($trips)): ?>
+            <p class="empty-state">
+                You haven't planned any trips yet. Click "New Trip" to get started.
+            </p>
+        <?php else: ?>
+            <div class="trip-grid">
+                <?php foreach ($trips as $trip): ?>
+                    <a class="trip-card" href="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>">
+                        <div class="trip-card-header">
+                            <h2><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?></h2>
+                            <span class="status-badge status-<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?>
+                            </span>
+                        </div>
+                        <p class="trip-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
+                        <p class="trip-dates">
+                            <?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>
+                            &ndash;
+                            <?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>
+                        </p>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </main>
 </body>
 </html>

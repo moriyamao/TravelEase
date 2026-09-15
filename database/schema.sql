@@ -38,3 +38,30 @@ CREATE TABLE IF NOT EXISTS users (
 -- of this file (before google_subject existed), do NOT re-run this
 -- CREATE TABLE script -- run database/migration_002_add_google_subject.sql
 -- against your existing database instead.
+
+CREATE TABLE IF NOT EXISTS trips (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT UNSIGNED        NOT NULL,
+    name            VARCHAR(150)        NOT NULL,
+    destination     VARCHAR(150)        NOT NULL,
+    start_date      DATE                NOT NULL,
+    end_date        DATE                NOT NULL,
+    status          ENUM('planning', 'confirmed', 'completed', 'cancelled')
+                                         NOT NULL DEFAULT 'planning',
+    notes           TEXT                NULL,
+    created_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                         ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_trips_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    INDEX idx_trips_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- See database/migration_003_add_trips.sql for the reasoning behind
+-- the trips table's design decisions (cascade delete, index, why
+-- destination isn't a foreign key yet, etc.)
+-- If you already had a database from before trips existed, run that
+-- migration file instead of re-running this whole schema.
