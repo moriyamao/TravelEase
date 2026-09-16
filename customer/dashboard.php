@@ -28,6 +28,7 @@ $statusLabels = [
     'completed' => 'Completed',
     'cancelled' => 'Cancelled',
 ];
+$tripCount = count($trips);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -51,8 +52,18 @@ $statusLabels = [
             </div>
         </header>
 
+        <section class="trip-overview" aria-labelledby="journey-heading">
+            <div>
+                <p class="eyebrow">Your travel desk</p>
+                <h2 id="journey-heading">Every good journey starts with a thoughtful plan.</h2>
+                <p class="trip-overview-copy">Keep your routes, days, and travel budget in one calm, useful place.</p>
+            </div>
+            <span class="trip-count"><?= $tripCount ?> <?= $tripCount === 1 ? 'journey' : 'journeys' ?></span>
+        </section>
+
         <div class="trips-toolbar">
-            <a href="/customer/trips/create.php" class="btn-primary">+ New Trip</a>
+            <p class="section-label">Your journeys</p>
+            <a href="/customer/trips/create.php" class="btn-primary">+ Plan a trip</a>
         </div>
 
         <?php if (empty($trips)): ?>
@@ -72,9 +83,9 @@ $statusLabels = [
                         <div class="trip-card-body">
                             <p class="trip-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
                             <p class="trip-dates">
-                                <?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>
-                                &ndash;
-                                <?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(date('M j, Y', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?>
+                                &mdash;
+                                <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?>
                             </p>
                         </div>
                     </a>

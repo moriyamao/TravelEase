@@ -1,111 +1,17 @@
-.dashboard {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-}
+.dashboard { max-width: 1160px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+.dashboard-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 58px; margin-bottom: 3.5rem; }
+.dashboard-header h1 { margin: 0; font-size: 1.25rem; }
+.dashboard-header h1::before { content: 'TravelEase'; display: inline-block; margin-right: .65rem; padding-right: .7rem; border-right: 1px solid var(--line); font-family: 'DM Sans', sans-serif; font-size: .76rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; vertical-align: .14em; }
+.header-actions { display: flex; align-items: center; gap: 1.15rem; }
+.welcome-text { color: var(--ink-muted); font-size: .87rem; }
+.logout-link { color: var(--ink); font-size: .86rem; font-weight: 700; text-decoration: none; }
+.logout-link:hover, .logout-link:focus { color: var(--stamp-dark); text-decoration: underline; text-underline-offset: 3px; }
 
-.dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 1rem;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 1.25rem;
-    margin-bottom: 2rem;
-}
-
-.dashboard-header h1 {
-    font-size: 1.6rem;
-    margin: 0;
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-}
-
-.welcome-text {
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-}
-
-.logout-link {
-    color: var(--stamp-dark);
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.85rem;
-}
-
-.logout-link:hover, .logout-link:focus {
-    text-decoration: underline;
-}
-
-@media (max-width: 480px) {
-    .dashboard { padding: 1.25rem 1rem; }
-    .header-actions {
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.25rem;
-    }
-}
-
-/* Admin user table */
-
-.admin-table-wrap {
-    overflow-x: auto;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--paper-white);
-}
-
-.admin-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-}
-
-.admin-table th, .admin-table td {
-    text-align: left;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--line);
-    white-space: nowrap;
-}
-
-.admin-table th {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 0.78rem;
-    color: var(--ink-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-.admin-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.admin-inline-form {
-    margin: 0;
-}
-
-.admin-inline-form select {
-    width: auto;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.85rem;
-}
-
-.link-danger {
-    background: none;
-    border: none;
-    color: var(--caution);
-    font-size: 0.8rem;
-    cursor: pointer;
-    padding: 0;
-    font-family: inherit;
-}
-
-.link-danger:hover {
-    text-decoration: underline;
-}
+.admin-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-white); box-shadow: var(--shadow-sm); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.admin-table th, .admin-table td { padding: .85rem 1rem; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.admin-table th { color: var(--ink-muted); font-family: 'DM Sans', sans-serif; font-size: .73rem; letter-spacing: .06em; text-transform: uppercase; }
+.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-inline-form { margin: 0; }.admin-inline-form select { width: auto; padding: .32rem .45rem; font-size: .85rem; }
+.link-danger { border: 0; padding: 0; background: transparent; color: var(--caution); font: inherit; font-size: .8rem; cursor: pointer; }.link-danger:hover { text-decoration: underline; }
+@media (max-width: 680px) { .dashboard { padding: 1rem 1rem 3rem; }.dashboard-header { margin-bottom: 2.5rem; }.welcome-text { display: none; }.header-actions { gap: .8rem; } }

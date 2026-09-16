@@ -87,63 +87,20 @@ $statusLabels = [
 <body>
     <main class="dashboard">
         <header class="dashboard-header">
-            <h1><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?></h1>
+            <h1>My Trips</h1>
             <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
         </header>
 
-        <div class="trip-detail-card">
-            <span class="status-badge status-<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>">
-                <?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?>
-            </span>
-
-            <dl class="trip-detail-list">
-                <dt>Destination</dt>
-                <dd><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></dd>
-
-                <dt>Dates</dt>
-                <dd><?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?> &ndash; <?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?></dd>
-
-                <dt>Currency</dt>
-                <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?></dd>
-
-                <?php if (!empty($trip['notes'])): ?>
-                    <dt>Notes</dt>
-                    <dd class="trip-notes"><?= nl2br(htmlspecialchars($trip['notes'], ENT_QUOTES, 'UTF-8')) ?></dd>
-                <?php endif; ?>
-            </dl>
-
-            <div class="trip-detail-actions">
-                <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-primary">Edit</a>
-                <form method="post" action="/customer/trips/delete.php"
-                      onsubmit="return confirm('Delete this trip? This cannot be undone.');">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="id" value="<?= (int) $trip['id'] ?>">
-                    <button type="submit" class="btn-danger">Delete</button>
-                </form>
+        <section class="trip-hero">
+            <div>
+                <p class="eyebrow">Journey dossier &middot; <span class="status-badge status-<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?></span></p>
+                <h1><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?></h1>
+                <p class="trip-hero-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
             </div>
-        </div>
-
-        <section class="budget-summary">
-            <h2>Budget</h2>
-            <dl class="trip-detail-list">
-                <dt>Estimated total</dt>
-                <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalEstimated, 2) ?></dd>
-
-                <dt>Actual total</dt>
-                <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalActual, 2) ?></dd>
-
-                <?php if ($trip['budget_amount'] !== null): ?>
-                    <?php $remaining = (float) $trip['budget_amount'] - $totalActual; ?>
-                    <dt>Budget</dt>
-                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $trip['budget_amount'], 2) ?></dd>
-
-                    <dt><?= $remaining >= 0 ? 'Remaining' : 'Over budget' ?></dt>
-                    <dd class="<?= $remaining >= 0 ? '' : 'budget-over' ?>">
-                        <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format(abs($remaining), 2) ?>
-                    </dd>
-                <?php endif; ?>
-            </dl>
+            <p class="trip-hero-date"><?= htmlspecialchars(date('M j, Y', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?><br>to <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?></p>
         </section>
+
+        <div class="trip-layout">
 
         <section class="itinerary-section">
             <h2>Itinerary</h2>
@@ -245,7 +202,48 @@ $statusLabels = [
                     <button type="submit">Add Item</button>
                 </form>
             </details>
-        </section>
+            </section>
+
+            <aside class="trip-detail-card">
+                <dl class="trip-detail-list">
+                    <dt>Destination</dt>
+                    <dd><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></dd>
+                    <dt>Trip dates</dt>
+                    <dd><?= htmlspecialchars(date('M j', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?> &mdash; <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?></dd>
+                    <dt>Currency</dt>
+                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?></dd>
+                    <?php if (!empty($trip['notes'])): ?>
+                        <dt>Notes</dt>
+                        <dd class="trip-notes"><?= nl2br(htmlspecialchars($trip['notes'], ENT_QUOTES, 'UTF-8')) ?></dd>
+                    <?php endif; ?>
+                </dl>
+                <div class="trip-detail-actions">
+                    <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-primary">Edit trip</a>
+                    <form method="post" action="/customer/trips/delete.php" onsubmit="return confirm('Delete this trip? This cannot be undone.');">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="id" value="<?= (int) $trip['id'] ?>">
+                        <button type="submit" class="btn-danger">Delete</button>
+                    </form>
+                </div>
+            </aside>
+
+            <section class="budget-summary">
+                <h2>Budget</h2>
+                <dl class="trip-detail-list">
+                    <dt>Planned across itinerary</dt>
+                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalEstimated, 2) ?></dd>
+                    <dt>Actual spend</dt>
+                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalActual, 2) ?></dd>
+                    <?php if ($trip['budget_amount'] !== null): ?>
+                        <?php $remaining = (float) $trip['budget_amount'] - $totalActual; ?>
+                        <dt>Total budget</dt>
+                        <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $trip['budget_amount'], 2) ?></dd>
+                        <dt><?= $remaining >= 0 ? 'Remaining' : 'Over budget' ?></dt>
+                        <dd class="<?= $remaining >= 0 ? '' : 'budget-over' ?>"><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format(abs($remaining), 2) ?></dd>
+                    <?php endif; ?>
+                </dl>
+            </section>
+        </div>
     </main>
 </body>
 </html>
