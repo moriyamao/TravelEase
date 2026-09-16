@@ -31,7 +31,7 @@ $pdo = get_db_connection();
 // this parent-trip ownership check is the only thing standing
 // between a customer and someone else's itinerary (§26 -- IDOR
 // prevention, two levels deep).
-$stmt = $pdo->prepare('SELECT start_date, end_date FROM trips WHERE id = :id AND user_id = :user_id LIMIT 1');
+$stmt = $pdo->prepare('SELECT start_date, end_date, budget_currency FROM trips WHERE id = :id AND user_id = :user_id LIMIT 1');
 $stmt->execute(['id' => $tripId, 'user_id' => current_user_id()]);
 $trip = $stmt->fetch();
 
@@ -45,6 +45,8 @@ $itemTime     = trim($_POST['item_time'] ?? '');
 $title        = trim($_POST['title'] ?? '');
 $location     = trim($_POST['location'] ?? '');
 $notes        = trim($_POST['notes'] ?? '');
+$estimated    = trim($_POST['estimated_cost'] ?? '');
+$actual       = trim($_POST['actual_cost'] ?? '');
 
 $errors = [];
 if ($err = validate_item_date($itemDate, $trip['start_date'], $trip['end_date'])) $errors[] = $err;
@@ -52,6 +54,8 @@ if ($err = validate_item_time($itemTime))     $errors[] = $err;
 if ($err = validate_item_title($title))       $errors[] = $err;
 if ($err = validate_item_location($location)) $errors[] = $err;
 if ($err = validate_item_notes($notes))       $errors[] = $err;
+if ($err = validate_money_amount($estimated, 'Estimated cost')) $errors[] = $err;
+if ($err = validate_money_amount($actual, 'Actual cost'))       $errors[] = $err;
 
 if (!empty($errors)) {
     // Simple flash-style pass-through via session for this one-off
@@ -64,16 +68,18 @@ if (!empty($errors)) {
 
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO itinerary_items (trip_id, item_date, item_time, title, location, notes)
-         VALUES (:trip_id, :item_date, :item_time, :title, :location, :notes)'
+        'INSERT INTO itinerary_items (trip_id, item_date, item_time, title, location, notes, estimated_cost, actual_cost)
+         VALUES (:trip_id, :item_date, :item_time, :title, :location, :notes, :estimated_cost, :actual_cost)'
     );
     $stmt->execute([
-        'trip_id'   => $tripId,
-        'item_date' => $itemDate,
-        'item_time' => $itemTime !== '' ? $itemTime : null,
-        'title'     => $title,
-        'location'  => $location !== '' ? $location : null,
-        'notes'     => $notes !== '' ? $notes : null,
+        'trip_id'        => $tripId,
+        'item_date'      => $itemDate,
+        'item_time'      => $itemTime !== '' ? $itemTime : null,
+        'title'          => $title,
+        'location'       => $location !== '' ? $location : null,
+        'notes'          => $notes !== '' ? $notes : null,
+        'estimated_cost' => $estimated !== '' ? $estimated : null,
+        'actual_cost'    => $actual !== '' ? $actual : null,
     ]);
 
     header('Location: /customer/trips/view.php?id=' . $tripId);

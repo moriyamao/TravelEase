@@ -21,7 +21,8 @@ $pdo = get_db_connection();
 function load_owned_trip(PDO $pdo, int $tripId, int $userId): ?array
 {
     $stmt = $pdo->prepare(
-        'SELECT id, name, destination, start_date, end_date, status, notes
+        'SELECT id, name, destination, start_date, end_date, status,
+                budget_currency, budget_amount, notes
          FROM trips
          WHERE id = :id AND user_id = :user_id
          LIMIT 1'
@@ -43,6 +44,8 @@ $destination = $trip['destination'];
 $startDate   = $trip['start_date'];
 $endDate     = $trip['end_date'];
 $status      = $trip['status'];
+$currency    = $trip['budget_currency'];
+$budget      = $trip['budget_amount'] !== null ? (string) $trip['budget_amount'] : '';
 $notes       = $trip['notes'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -55,12 +58,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $startDate   = trim($_POST['start_date'] ?? '');
         $endDate     = trim($_POST['end_date'] ?? '');
         $status      = trim($_POST['status'] ?? 'planning');
+        $currency    = trim($_POST['budget_currency'] ?? 'PHP');
+        $budget      = trim($_POST['budget_amount'] ?? '');
         $notes       = trim($_POST['notes'] ?? '');
 
         if ($err = validate_trip_name($name))               $errors[] = $err;
         if ($err = validate_trip_destination($destination))  $errors[] = $err;
         if ($err = validate_trip_dates($startDate, $endDate)) $errors[] = $err;
         if ($err = validate_trip_status($status))            $errors[] = $err;
+        if ($err = validate_trip_currency($currency))        $errors[] = $err;
+        if ($err = validate_money_amount($budget, 'Budget')) $errors[] = $err;
         if ($err = validate_trip_notes($notes))              $errors[] = $err;
 
         if (empty($errors)) {
@@ -73,18 +80,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'UPDATE trips
                      SET name = :name, destination = :destination,
                          start_date = :start_date, end_date = :end_date,
-                         status = :status, notes = :notes
+                         status = :status, budget_currency = :budget_currency,
+                         budget_amount = :budget_amount, notes = :notes
                      WHERE id = :id AND user_id = :user_id'
                 );
                 $stmt->execute([
-                    'name'        => $name,
-                    'destination' => $destination,
-                    'start_date'  => $startDate,
-                    'end_date'    => $endDate,
-                    'status'      => $status,
-                    'notes'       => $notes !== '' ? $notes : null,
-                    'id'          => $tripId,
-                    'user_id'     => current_user_id(),
+                    'name'            => $name,
+                    'destination'     => $destination,
+                    'start_date'      => $startDate,
+                    'end_date'        => $endDate,
+                    'status'          => $status,
+                    'budget_currency' => $currency,
+                    'budget_amount'   => $budget !== '' ? $budget : null,
+                    'notes'           => $notes !== '' ? $notes : null,
+                    'id'              => $tripId,
+                    'user_id'         => current_user_id(),
                 ]);
 
                 header('Location: /customer/trips/view.php?id=' . $tripId);
@@ -157,6 +167,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="completed" <?= $status === 'completed' ? 'selected' : '' ?>>Completed</option>
                     <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
                 </select>
+
+                <div class="form-row">
+                    <div>
+                        <label for="budget_currency">Currency</label>
+                        <select id="budget_currency" name="budget_currency">
+                            <?php foreach (TRIP_ALLOWED_CURRENCIES as $code): ?>
+                                <option value="<?= $code ?>" <?= $currency === $code ? 'selected' : '' ?>><?= $code ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="budget_amount">Budget (optional)</label>
+                        <input type="text" inputmode="decimal" id="budget_amount" name="budget_amount"
+                               placeholder="e.g. 25000.00"
+                               value="<?= htmlspecialchars($budget, ENT_QUOTES, 'UTF-8') ?>">
+                    </div>
+                </div>
 
                 <label for="notes">Notes (optional)</label>
                 <textarea id="notes" name="notes" rows="4" maxlength="5000"><?= htmlspecialchars($notes, ENT_QUOTES, 'UTF-8') ?></textarea>

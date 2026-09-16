@@ -26,7 +26,9 @@ function load_owned_item(PDO $pdo, int $itemId, int $userId): ?array
 {
     $stmt = $pdo->prepare(
         'SELECT i.id, i.trip_id, i.item_date, i.item_time, i.title, i.location, i.notes,
-                t.start_date AS trip_start, t.end_date AS trip_end, t.name AS trip_name
+                i.estimated_cost, i.actual_cost,
+                t.start_date AS trip_start, t.end_date AS trip_end, t.name AS trip_name,
+                t.budget_currency
          FROM itinerary_items i
          INNER JOIN trips t ON t.id = i.trip_id
          WHERE i.id = :id AND t.user_id = :user_id
@@ -46,26 +48,32 @@ if (!$item) {
 $errors   = [];
 $itemDate = $item['item_date'];
 $itemTime = $item['item_time'] ?? '';
-$title    = $item['title'];
-$location = $item['location'] ?? '';
-$notes    = $item['notes'] ?? '';
+$title     = $item['title'];
+$location  = $item['location'] ?? '';
+$notes     = $item['notes'] ?? '';
+$estimated = $item['estimated_cost'] !== null ? (string) $item['estimated_cost'] : '';
+$actual    = $item['actual_cost'] !== null ? (string) $item['actual_cost'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
-        $itemDate = trim($_POST['item_date'] ?? '');
-        $itemTime = trim($_POST['item_time'] ?? '');
-        $title    = trim($_POST['title'] ?? '');
-        $location = trim($_POST['location'] ?? '');
-        $notes    = trim($_POST['notes'] ?? '');
+        $itemDate  = trim($_POST['item_date'] ?? '');
+        $itemTime  = trim($_POST['item_time'] ?? '');
+        $title     = trim($_POST['title'] ?? '');
+        $location  = trim($_POST['location'] ?? '');
+        $notes     = trim($_POST['notes'] ?? '');
+        $estimated = trim($_POST['estimated_cost'] ?? '');
+        $actual    = trim($_POST['actual_cost'] ?? '');
 
         if ($err = validate_item_date($itemDate, $item['trip_start'], $item['trip_end'])) $errors[] = $err;
         if ($err = validate_item_time($itemTime))     $errors[] = $err;
         if ($err = validate_item_title($title))       $errors[] = $err;
         if ($err = validate_item_location($location)) $errors[] = $err;
         if ($err = validate_item_notes($notes))       $errors[] = $err;
+        if ($err = validate_money_amount($estimated, 'Estimated cost')) $errors[] = $err;
+        if ($err = validate_money_amount($actual, 'Actual cost'))       $errors[] = $err;
 
         if (empty($errors)) {
             try {
@@ -75,17 +83,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'UPDATE itinerary_items i
                      INNER JOIN trips t ON t.id = i.trip_id
                      SET i.item_date = :item_date, i.item_time = :item_time,
-                         i.title = :title, i.location = :location, i.notes = :notes
+                         i.title = :title, i.location = :location, i.notes = :notes,
+                         i.estimated_cost = :estimated_cost, i.actual_cost = :actual_cost
                      WHERE i.id = :id AND t.user_id = :user_id'
                 );
                 $stmt->execute([
-                    'item_date' => $itemDate,
-                    'item_time' => $itemTime !== '' ? $itemTime : null,
-                    'title'     => $title,
-                    'location'  => $location !== '' ? $location : null,
-                    'notes'     => $notes !== '' ? $notes : null,
-                    'id'        => $itemId,
-                    'user_id'   => current_user_id(),
+                    'item_date'      => $itemDate,
+                    'item_time'      => $itemTime !== '' ? $itemTime : null,
+                    'title'          => $title,
+                    'location'       => $location !== '' ? $location : null,
+                    'notes'          => $notes !== '' ? $notes : null,
+                    'estimated_cost' => $estimated !== '' ? $estimated : null,
+                    'actual_cost'    => $actual !== '' ? $actual : null,
+                    'id'             => $itemId,
+                    'user_id'        => current_user_id(),
                 ]);
 
                 header('Location: /customer/trips/view.php?id=' . $item['trip_id']);
@@ -152,6 +163,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="location">Location (optional)</label>
                 <input type="text" id="location" name="location" maxlength="150"
                        value="<?= htmlspecialchars($location, ENT_QUOTES, 'UTF-8') ?>">
+
+                <div class="form-row">
+                    <div>
+                        <label for="estimated_cost">Estimated cost in <?= htmlspecialchars($item['budget_currency'], ENT_QUOTES, 'UTF-8') ?> (optional)</label>
+                        <input type="text" inputmode="decimal" id="estimated_cost" name="estimated_cost"
+                               placeholder="e.g. 1500.00"
+                               value="<?= htmlspecialchars($estimated, ENT_QUOTES, 'UTF-8') ?>">
+                    </div>
+                    <div>
+                        <label for="actual_cost">Actual cost in <?= htmlspecialchars($item['budget_currency'], ENT_QUOTES, 'UTF-8') ?> (optional)</label>
+                        <input type="text" inputmode="decimal" id="actual_cost" name="actual_cost"
+                               placeholder="e.g. 1620.00"
+                               value="<?= htmlspecialchars($actual, ENT_QUOTES, 'UTF-8') ?>">
+                    </div>
+                </div>
 
                 <label for="notes">Notes (optional)</label>
                 <textarea id="notes" name="notes" rows="3" maxlength="2000"><?= htmlspecialchars($notes, ENT_QUOTES, 'UTF-8') ?></textarea>

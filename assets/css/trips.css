@@ -230,6 +230,33 @@
     white-space: pre-wrap;
 }
 
+.itinerary-cost {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: var(--route);
+    font-weight: 600;
+}
+
+/* Budget summary */
+
+.budget-summary {
+    max-width: 480px;
+    background: var(--paper-white);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.75rem;
+    margin-top: 1.5rem;
+}
+
+.budget-summary h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem;
+}
+
+.budget-over {
+    color: var(--caution);
+}
+
 .itinerary-item-actions {
     display: flex;
     gap: 0.75rem;

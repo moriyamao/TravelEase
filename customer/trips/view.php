@@ -20,7 +20,8 @@ $pdo = get_db_connection();
 // prevention). Changing ?id= in the URL cannot expose another user's
 // trip.
 $stmt = $pdo->prepare(
-    'SELECT id, name, destination, start_date, end_date, status, notes, created_at
+    'SELECT id, name, destination, start_date, end_date, status,
+            budget_currency, budget_amount, notes, created_at
      FROM trips
      WHERE id = :id AND user_id = :user_id
      LIMIT 1'
@@ -40,7 +41,7 @@ if (!$trip) {
 // belong to the logged-in user above, so this second query is safe
 // to filter by trip_id alone.
 $stmt = $pdo->prepare(
-    'SELECT id, item_date, item_time, title, location, notes
+    'SELECT id, item_date, item_time, title, location, notes, estimated_cost, actual_cost
      FROM itinerary_items
      WHERE trip_id = :trip_id
      ORDER BY item_date ASC, item_time ASC'
@@ -50,8 +51,16 @@ $items = $stmt->fetchAll();
 
 // Group items by date for the day-by-day display.
 $itemsByDate = [];
+$totalEstimated = 0.0;
+$totalActual    = 0.0;
 foreach ($items as $item) {
     $itemsByDate[$item['item_date']][] = $item;
+    if ($item['estimated_cost'] !== null) {
+        $totalEstimated += (float) $item['estimated_cost'];
+    }
+    if ($item['actual_cost'] !== null) {
+        $totalActual += (float) $item['actual_cost'];
+    }
 }
 
 $itineraryErrors = $_SESSION['itinerary_errors'] ?? [];
@@ -94,6 +103,9 @@ $statusLabels = [
                 <dt>Dates</dt>
                 <dd><?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?> &ndash; <?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?></dd>
 
+                <dt>Currency</dt>
+                <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?></dd>
+
                 <?php if (!empty($trip['notes'])): ?>
                     <dt>Notes</dt>
                     <dd class="trip-notes"><?= nl2br(htmlspecialchars($trip['notes'], ENT_QUOTES, 'UTF-8')) ?></dd>
@@ -110,6 +122,28 @@ $statusLabels = [
                 </form>
             </div>
         </div>
+
+        <section class="budget-summary">
+            <h2>Budget</h2>
+            <dl class="trip-detail-list">
+                <dt>Estimated total</dt>
+                <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalEstimated, 2) ?></dd>
+
+                <dt>Actual total</dt>
+                <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalActual, 2) ?></dd>
+
+                <?php if ($trip['budget_amount'] !== null): ?>
+                    <?php $remaining = (float) $trip['budget_amount'] - $totalActual; ?>
+                    <dt>Budget</dt>
+                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $trip['budget_amount'], 2) ?></dd>
+
+                    <dt><?= $remaining >= 0 ? 'Remaining' : 'Over budget' ?></dt>
+                    <dd class="<?= $remaining >= 0 ? '' : 'budget-over' ?>">
+                        <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format(abs($remaining), 2) ?>
+                    </dd>
+                <?php endif; ?>
+            </dl>
+        </section>
 
         <section class="itinerary-section">
             <h2>Itinerary</h2>
@@ -140,6 +174,16 @@ $statusLabels = [
                                             <span class="itinerary-location">— <?= htmlspecialchars($item['location'], ENT_QUOTES, 'UTF-8') ?></span>
                                         <?php endif; ?>
                                     </div>
+                                    <?php if ($item['estimated_cost'] !== null || $item['actual_cost'] !== null): ?>
+                                        <p class="itinerary-cost">
+                                            <?php if ($item['estimated_cost'] !== null): ?>
+                                                Est. <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $item['estimated_cost'], 2) ?>
+                                            <?php endif; ?>
+                                            <?php if ($item['actual_cost'] !== null): ?>
+                                                <?= $item['estimated_cost'] !== null ? ' · ' : '' ?>Actual <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $item['actual_cost'], 2) ?>
+                                            <?php endif; ?>
+                                        </p>
+                                    <?php endif; ?>
                                     <?php if (!empty($item['notes'])): ?>
                                         <p class="itinerary-notes"><?= nl2br(htmlspecialchars($item['notes'], ENT_QUOTES, 'UTF-8')) ?></p>
                                     <?php endif; ?>
@@ -183,6 +227,17 @@ $statusLabels = [
 
                     <label for="location">Location (optional)</label>
                     <input type="text" id="location" name="location" maxlength="150">
+
+                    <div class="form-row">
+                        <div>
+                            <label for="estimated_cost">Estimated cost in <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> (optional)</label>
+                            <input type="text" inputmode="decimal" id="estimated_cost" name="estimated_cost" placeholder="e.g. 1500.00">
+                        </div>
+                        <div>
+                            <label for="actual_cost">Actual cost in <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> (optional)</label>
+                            <input type="text" inputmode="decimal" id="actual_cost" name="actual_cost" placeholder="e.g. 1620.00">
+                        </div>
+                    </div>
 
                     <label for="notes">Notes (optional)</label>
                     <textarea id="notes" name="notes" rows="3" maxlength="2000"></textarea>

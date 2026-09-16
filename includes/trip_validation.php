@@ -77,3 +77,43 @@ function validate_trip_notes(string $notes): ?string
     }
     return null;
 }
+
+/**
+ * A fixed list of common travel currencies, not a currencies lookup
+ * table -- this set changes rarely enough that a small allowlist is
+ * proportional, and it protects budget_currency from arbitrary junk
+ * input without the overhead of a full ISO 4217 table.
+ */
+const TRIP_ALLOWED_CURRENCIES = [
+    'PHP', 'USD', 'EUR', 'GBP', 'JPY', 'KRW', 'CNY', 'HKD', 'SGD',
+    'THB', 'VND', 'IDR', 'MYR', 'TWD', 'AUD', 'CAD', 'AED', 'INR',
+];
+
+function validate_trip_currency(string $currency): ?string
+{
+    if (!in_array($currency, TRIP_ALLOWED_CURRENCIES, true)) {
+        return 'Please choose a supported currency.';
+    }
+    return null;
+}
+
+/**
+ * Shared cost validator for both a trip's overall budget_amount and
+ * an itinerary item's estimated_cost / actual_cost -- all-in amounts
+ * (tax already included, see migration_006's notes), so the rule is
+ * the same wherever a money field appears: optional, non-negative,
+ * at most two decimal places, and within what DECIMAL(10,2) can hold.
+ */
+function validate_money_amount(string $amount, string $fieldLabel): ?string
+{
+    if ($amount === '') {
+        return null; // every cost/budget field in this app is optional
+    }
+    if (!preg_match('/^\d{1,8}(\.\d{1,2})?$/', $amount)) {
+        return "{$fieldLabel} must be a non-negative number with at most 2 decimal places.";
+    }
+    if ((float) $amount > 99999999.99) {
+        return "{$fieldLabel} is too large.";
+    }
+    return null;
+}
