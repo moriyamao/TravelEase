@@ -21,6 +21,35 @@ function is_logged_in(): bool
 }
 
 /**
+ * Re-checks the logged-in user's row against the database on every
+ * protected request. Catches two things a stale session otherwise
+ * misses: an admin demoting/promoting someone (session keeps the old
+ * role until this runs), and an admin deleting the account entirely
+ * (session would otherwise keep working until it expires).
+ */
+function sync_current_user_session(): void
+{
+    require_once __DIR__ . '/../config/database.php';
+
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare('SELECT role FROM users WHERE id = :id');
+    $stmt->execute(['id' => current_user_id()]);
+    $row = $stmt->fetch();
+
+    if ($row === false) {
+        // Account no longer exists -- kill the session outright.
+        session_unset();
+        session_destroy();
+        header('Location: /auth/login.php');
+        exit;
+    }
+
+    if ($row['role'] !== current_user_role()) {
+        $_SESSION['user_role'] = $row['role'];
+    }
+}
+
+/**
  * Redirects to login if the user is not authenticated.
  * Call at the top of any page that requires a logged-in user.
  */
@@ -30,6 +59,8 @@ function require_login(): void
         header('Location: /auth/login.php');
         exit;
     }
+
+    sync_current_user_session();
 }
 
 /**

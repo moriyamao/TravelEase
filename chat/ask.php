@@ -23,6 +23,24 @@ if (!csrf_verify($input['csrf_token'] ?? null)) {
     exit;
 }
 
+// Simple per-session rate limit: 10 messages per 5 minutes. Matches
+// the existing per-session (not IP-based) approach already used for
+// login attempts elsewhere in this app -- consistent, no new infra.
+$_SESSION['chat_requests'] = $_SESSION['chat_requests'] ?? [];
+$_SESSION['chat_requests'] = array_values(array_filter(
+    $_SESSION['chat_requests'],
+    fn($ts) => $ts > time() - 300
+));
+
+if (count($_SESSION['chat_requests']) >= 10) {
+    http_response_code(429);
+    header('Retry-After: 60');
+    echo json_encode(['error' => 'Too many messages. Please wait a moment before trying again.']);
+    exit;
+}
+
+$_SESSION['chat_requests'][] = time();
+
 $message = trim((string) ($input['message'] ?? ''));
 
 if ($message === '') {
