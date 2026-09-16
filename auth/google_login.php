@@ -56,12 +56,12 @@ $pdo = get_db_connection();
 
 try {
     // 1. Already linked? Log them straight in.
-    $stmt = $pdo->prepare('SELECT id, role, name FROM users WHERE google_subject = :sub LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, role, name, email FROM users WHERE google_subject = :sub LIMIT 1');
     $stmt->execute(['sub' => $sub]);
     $user = $stmt->fetch();
 
     if ($user) {
-        log_in_user((int) $user['id'], $user['role'], $user['name']);
+       log_in_user((int) $user['id'], $user['role'], $user['name'], $user['email']);
         echo json_encode(['redirect' => '/includes/redirect_dashboard.php']);
         exit;
     }
@@ -91,7 +91,7 @@ try {
     ]);
 
     $newUserId = (int) $pdo->lastInsertId();
-    log_in_user($newUserId, 'customer', $name);
+    log_in_user($newUserId, 'customer', $name, $email);
     echo json_encode(['redirect' => '/includes/redirect_dashboard.php']);
 
 } catch (PDOException $e) {
@@ -105,11 +105,12 @@ try {
  * (require_login, require_role) works unchanged regardless of which
  * authentication method was used.
  */
-function log_in_user(int $userId, string $role, string $name): void
+function log_in_user(int $userId, string $role, string $name, string $email): void
 {
     session_regenerate_id(true);
-    $_SESSION['user_id']   = $userId;
-    $_SESSION['user_role'] = $role;
-    $_SESSION['user_name'] = $name;
+    $_SESSION['user_id']    = $userId;
+    $_SESSION['user_role']  = $role;
+    $_SESSION['user_name']  = $name;
+    $_SESSION['user_email'] = $email;
     $_SESSION['login_attempts'] = 0;
 }

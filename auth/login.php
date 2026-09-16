@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = get_db_connection();
 
             $stmt = $pdo->prepare(
-                'SELECT id, name, password_hash, role FROM users WHERE email = :email LIMIT 1'
+                'SELECT id, name, email, password_hash, role FROM users WHERE email = :email LIMIT 1'
             );
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch();
@@ -58,9 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['login_attempts'] = 0;
 
                 session_regenerate_id(true);
-                $_SESSION['user_id']   = (int) $user['id'];
-                $_SESSION['user_role'] = $user['role'];
-                $_SESSION['user_name'] = $user['name'];
+               $_SESSION['user_id']    = (int) $user['id'];
+               $_SESSION['user_role']  = $user['role'];
+               $_SESSION['user_name']  = $user['name'];
+               $_SESSION['user_email'] = $user['email'];
 
                 header('Location: /includes/redirect_dashboard.php');
                 exit;

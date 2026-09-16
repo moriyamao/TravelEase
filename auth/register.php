@@ -58,9 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Log the new user in immediately.
                     session_regenerate_id(true);
-                    $_SESSION['user_id']   = $userId;
-                    $_SESSION['user_role'] = 'customer';
-                    $_SESSION['user_name'] = $name;
+                   $_SESSION['user_id']    = $userId;
+                   $_SESSION['user_role']  = 'customer';
+                   $_SESSION['user_name']  = $name;
+                   $_SESSION['user_email'] = $email;
 
                     header('Location: /includes/redirect_dashboard.php');
                     exit;

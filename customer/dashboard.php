@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 require_role(['customer']);
@@ -37,6 +38,7 @@ $statusLabels = [
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
+    <link rel="stylesheet" href="/assets/css/chat-widget.css">
 </head>
 <body>
     <main class="dashboard">
@@ -80,5 +82,7 @@ $statusLabels = [
             </div>
         <?php endif; ?>
     </main>
+
+    <?php require __DIR__ . '/../includes/partials/chat_widget.php'; ?>
 </body>
 </html>
