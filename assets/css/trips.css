@@ -159,3 +159,139 @@
 @media (max-width: 480px) {
     .form-row { grid-template-columns: 1fr; }
 }
+
+/* Itinerary timeline */
+
+.itinerary-section {
+    max-width: 480px;
+    margin-top: 2rem;
+}
+
+.itinerary-section h2 {
+    font-size: 1.2rem;
+    margin: 0 0 1rem;
+}
+
+.itinerary-day {
+    margin-bottom: 1.5rem;
+}
+
+.itinerary-day-heading {
+    font-size: 0.85rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--ink-muted);
+    margin: 0 0 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px dashed var(--line);
+}
+
+.itinerary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.itinerary-item {
+    background: var(--paper-white);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+}
+
+.itinerary-item-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.itinerary-time {
+    font-variant-numeric: tabular-nums;
+    color: var(--stamp-dark);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.itinerary-title {
+    font-weight: 600;
+}
+
+.itinerary-location {
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+}
+
+.itinerary-notes {
+    margin: 0.4rem 0 0;
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+    white-space: pre-wrap;
+}
+
+.itinerary-item-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.itinerary-item-actions a {
+    color: var(--stamp-dark);
+    text-decoration: none;
+}
+
+.itinerary-item-actions a:hover {
+    text-decoration: underline;
+}
+
+.itinerary-item-actions form {
+    margin: 0;
+}
+
+.link-danger {
+    background: none;
+    border: none;
+    color: var(--caution);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+}
+
+.link-danger:hover {
+    text-decoration: underline;
+}
+
+.add-item-form {
+    margin-top: 1.5rem;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 0.9rem 1.1rem;
+}
+
+.add-item-form summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--stamp-dark);
+    font-size: 0.9rem;
+}
+
+.add-item-form form {
+    margin-top: 1rem;
+}
+
+.add-item-form button[type="submit"] {
+    margin-top: 1rem;
+    padding: 0.6rem 1.1rem;
+    background: var(--stamp);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.add-item-form button[type="submit"]:hover {
+    background: var(--stamp-dark);
+}
