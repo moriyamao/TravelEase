@@ -57,6 +57,27 @@ if (mb_strlen($message) > 1000) {
 
 $result = ask_ai($message);
 
+// Record the escalation in-app so staff have a real queue to work
+// from, not just an email in Mori's inbox. The EmailJS send (client
+// side, in chat-widget.js) still happens independently -- this is a
+// second, in-app record of the same event, not a replacement.
+if ($result['escalate']) {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare(
+            'INSERT INTO escalations (user_id, message) VALUES (:user_id, :message)'
+        );
+        $stmt->execute([
+            'user_id' => current_user_id(),
+            'message' => $message,
+        ]);
+    } catch (PDOException $e) {
+        // TEMPORARY DEBUG -- remove once diagnosed
+        echo json_encode(['debug_error' => $e->getMessage()]);
+        exit;
+    }
+}
+
 echo json_encode([
     'reply'    => $result['reply'],
     'escalate' => $result['escalate'],

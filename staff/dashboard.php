@@ -47,6 +47,7 @@ $statusLabels = [
             <div class="header-actions">
                 <a href="/profile.php" class="logout-link">Profile</a>
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
+                <a href="/staff/escalations.php" class="logout-link">Support Queue</a>
             </div>
         </header>
 
