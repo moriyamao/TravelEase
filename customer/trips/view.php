@@ -83,6 +83,7 @@ $statusLabels = [
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/auth.css">
+    <link rel="stylesheet" href="/assets/css/chat-widget.css">
 </head>
 <body>
     <main class="dashboard">
@@ -245,5 +246,7 @@ $statusLabels = [
             </section>
         </div>
     </main>
+
+    <?php require __DIR__ . '/../../includes/partials/chat_widget.php'; ?>
 </body>
 </html>

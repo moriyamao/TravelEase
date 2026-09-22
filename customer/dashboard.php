@@ -20,6 +20,20 @@ $stmt = $pdo->prepare(
 $stmt->execute(['user_id' => current_user_id()]);
 $trips = $stmt->fetchAll();
 
+// Unread staff replies to this customer's own support requests --
+// same ownership scoping as everything else (user_id = current user).
+// Only shown once: customer_seen_at is set the moment they dismiss it.
+$stmt = $pdo->prepare(
+    'SELECT id, message, staff_reply, replied_at
+     FROM escalations
+     WHERE user_id = :user_id
+       AND staff_reply IS NOT NULL
+       AND customer_seen_at IS NULL
+     ORDER BY replied_at DESC'
+);
+$stmt->execute(['user_id' => current_user_id()]);
+$unreadReplies = $stmt->fetchAll();
+
 $name = htmlspecialchars($_SESSION['user_name'] ?? 'Traveler', ENT_QUOTES, 'UTF-8');
 
 $statusLabels = [
@@ -51,6 +65,18 @@ $tripCount = count($trips);
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
             </div>
         </header>
+
+        <?php foreach ($unreadReplies as $reply): ?>
+            <div class="form-errors" style="background: var(--paper-white); border-color: var(--route); color: var(--ink);">
+                <strong>Support replied to your request:</strong>
+                <p style="margin: 0.4rem 0;"><?= nl2br(htmlspecialchars($reply['staff_reply'], ENT_QUOTES, 'UTF-8')) ?></p>
+                <form method="POST" action="/customer/dismiss_escalation_reply.php" style="margin: 0;">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="escalation_id" value="<?= (int) $reply['id'] ?>">
+                    <button type="submit" class="link-danger" style="color: var(--route);">Dismiss</button>
+                </form>
+            </div>
+        <?php endforeach; ?>
 
         <section class="trip-overview" aria-labelledby="journey-heading">
             <div>
@@ -95,5 +121,6 @@ $tripCount = count($trips);
     </main>
 
     <?php require __DIR__ . '/../includes/partials/chat_widget.php'; ?>
+    <?php require __DIR__ . '/../includes/partials/support_chathead.php'; ?>
 </body>
 </html>

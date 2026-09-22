@@ -28,17 +28,17 @@ CREATE TABLE IF NOT EXISTS users (
 -- ARCHITECTURE NOTES
 --
 -- password_hash is NULLable: email/password accounts always have a
--- hash (enforced in application code); Google-only accounts do not.
+-- hash (enforced in application code); Google-only accounts do not
 --
 -- google_subject is NULLable and uniquely constrained: it stores the
 -- verified Google 'sub' claim for accounts created/linked via Google
 -- Sign-In (Milestone 2). It is never populated from unverified client
--- input -- only from a server-side-verified ID token.
+-- input -- only from a server-side-verified ID token
 --
 -- NOTE FOR EXISTING DATABASES: if you already ran an earlier version
 -- of this file (before google_subject existed), do NOT re-run this
 -- CREATE TABLE script -- run database/migration_002_add_google_subject.sql
--- against your existing database instead.
+-- against your existing database instead   
 
 CREATE TABLE IF NOT EXISTS trips (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -67,9 +67,9 @@ CREATE TABLE IF NOT EXISTS trips (
 -- the trips table's design decisions (cascade delete, index, why
 -- destination isn't a foreign key yet, etc.), and
 -- database/migration_006_add_budget_fields.sql for budget_currency
--- and budget_amount.
+-- and budget_amount
 -- If you already had a database from before trips existed, run that
--- migration file instead of re-running this whole schema.
+-- migration file instead of re-running this whole schema
 
 CREATE TABLE IF NOT EXISTS itinerary_items (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -98,4 +98,4 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
 -- check, no separate days table, etc.), and
 -- database/migration_006_add_budget_fields.sql for estimated_cost /
 -- actual_cost (both all-in amounts, tax included, no separate tax
--- column -- see that migration's notes).
+-- column -- see that migration's notes)
