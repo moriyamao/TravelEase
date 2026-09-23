@@ -1,9 +1,4 @@
 -- Migration 002: Add Google Sign-In support
--- Run this against your EXISTING travelease database (the one created
--- by schema.sql). This does not touch or delete any existing rows.
---
--- Usage (phpMyAdmin): open the SQL tab on the `travelease` database,
--- paste this file's contents, click Go.
 
 USE travelease;
 

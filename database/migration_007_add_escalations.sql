@@ -1,13 +1,4 @@
 -- Migration 007: Escalations queue
---
--- Previously, an AI chat escalation only sent an email (EmailJS,
--- client-side) with no record inside the app itself -- staff had no
--- way to see open support requests except checking Mori's inbox.
--- This table makes escalations a real, queryable, in-app queue.
---
--- Deliberately minimal: no assignment, no priority, no category --
--- just "is this open or resolved." Add fields later only if an actual
--- need shows up; don't build ahead of it.
 
 CREATE TABLE IF NOT EXISTS escalations (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

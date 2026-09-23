@@ -1,8 +1,4 @@
 -- Migration 003: Add trips table (Milestone 3)
--- Run this against your EXISTING travelease database.
---
--- Usage (phpMyAdmin): open the SQL tab on the `travelease` database,
--- paste this file's contents, click Go.
 
 USE travelease;
 

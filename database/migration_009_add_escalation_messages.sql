@@ -1,11 +1,11 @@
 -- Migration 009: Escalation message threads
---
+
 -- Upgrades escalations from a single customer message + single staff
 -- reply into a real back-and-forth thread. escalations.staff_reply /
 -- replied_at are left in place (not dropped) for safety, but the app
 -- stops writing to them after this point -- all messages now live in
 -- escalation_messages instead.
---
+
 -- sender_id is nullable because old staff_reply rows never recorded
 -- which staff member replied -- that data simply doesn't exist for
 -- anything created before this migration.
