@@ -13,7 +13,7 @@ $pdo = get_db_connection();
 // the way customer pages are. Joined with the owner's name/email so
 // staff can see whose trip they're looking at. Read-only: staff has
 // no mutation power over customer-owned trip data (see project notes
-// on why status-editing was deliberately left out).
+// on why status-editing was deliberately left out)
 $stmt = $pdo->query('
     SELECT
         t.id, t.name, t.destination, t.start_date, t.end_date, t.status,

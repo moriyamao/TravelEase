@@ -113,6 +113,10 @@
     cursor: pointer;
 }
 
+#te-support-chathead {
+    right: 5.5rem !important;
+}
+
 @media (max-width: 420px) {
     .te-chat-panel { width: calc(100vw - 2rem); right: -0.5rem; }
 }

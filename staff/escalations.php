@@ -8,18 +8,30 @@ require_role(['staff', 'admin']);
 
 $name = htmlspecialchars($_SESSION['user_name'] ?? 'Staff', ENT_QUOTES, 'UTF-8');
 
+// Toggle between open (default) and archived (resolved) tickets.
+// Kept as a simple GET param -- no new table, no schema change,
+// `status` already tracks exactly what we need.
+$view = ($_GET['view'] ?? 'open') === 'archived' ? 'archived' : 'open';
+
 $pdo = get_db_connection();
 
-$stmt = $pdo->query('
+$stmt = $pdo->prepare('
     SELECT
-        e.id, e.status, e.created_at,
+        e.id, e.status, e.created_at, e.resolved_at,
         u.name AS customer_name, u.email AS customer_email
     FROM escalations e
     JOIN users u ON u.id = e.user_id
+    WHERE e.status = :status
     ORDER BY
-        (e.status = "open") DESC,
-        e.created_at DESC
+        CASE WHEN :status2 = "open" THEN e.created_at END DESC,
+        CASE WHEN :status3 = "archived" THEN e.resolved_at END DESC
 ');
+$statusFilter = $view === 'archived' ? 'resolved' : 'open';
+$stmt->execute([
+    'status'  => $statusFilter,
+    'status2' => $view,
+    'status3' => $view,
+]);
 $escalations = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -40,6 +52,9 @@ $escalations = $stmt->fetchAll();
         .escalation-messages { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
         .escalation-reply-form { display: flex; gap: 0.5rem; }
         .escalation-reply-form input { flex: 1; }
+        .view-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+        .view-tabs a { padding: 0.4rem 0.9rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; color: var(--ink-muted); border: 1px solid var(--line); }
+        .view-tabs a.active { background: var(--ink); color: #fff; border-color: var(--ink); }
     </style>
 </head>
 <body>
@@ -53,8 +68,13 @@ $escalations = $stmt->fetchAll();
             </div>
         </header>
 
+        <div class="view-tabs">
+            <a href="/staff/escalations.php?view=open" class="<?= $view === 'open' ? 'active' : '' ?>">Open</a>
+            <a href="/staff/escalations.php?view=archived" class="<?= $view === 'archived' ? 'active' : '' ?>">Archived</a>
+        </div>
+
         <?php if (empty($escalations)): ?>
-            <p class="empty-state">No support requests yet.</p>
+            <p class="empty-state"><?= $view === 'archived' ? 'No resolved tickets yet.' : 'No open support requests.' ?></p>
         <?php endif; ?>
 
         <?php foreach ($escalations as $item): ?>
@@ -64,7 +84,11 @@ $escalations = $stmt->fetchAll();
                         <strong><?= htmlspecialchars($item['customer_name'], ENT_QUOTES, 'UTF-8') ?></strong>
                         <small style="color: var(--ink-muted);"> — <?= htmlspecialchars($item['customer_email'], ENT_QUOTES, 'UTF-8') ?></small>
                         <br>
-                        <small style="color: var(--ink-muted);"><?= htmlspecialchars(date('M j, Y g:ia', strtotime($item['created_at'])), ENT_QUOTES, 'UTF-8') ?></small>
+                        <small style="color: var(--ink-muted);">
+                            <?= $view === 'archived'
+                                ? 'Resolved ' . htmlspecialchars(date('M j, Y g:ia', strtotime($item['resolved_at'])), ENT_QUOTES, 'UTF-8')
+                                : htmlspecialchars(date('M j, Y g:ia', strtotime($item['created_at'])), ENT_QUOTES, 'UTF-8') ?>
+                        </small>
                     </div>
                     <div>
                         <span class="status-badge status-<?= $item['status'] === 'open' ? 'planning' : 'completed' ?>">
@@ -146,6 +170,7 @@ $escalations = $stmt->fetchAll();
         }
 
         // Poll open threads every 4 seconds for new customer messages.
+        // Only matters on the Open view -- archived tickets are frozen.
         setInterval(() => {
             openThreads.forEach(loadMessages);
         }, 4000);
