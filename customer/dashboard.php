@@ -43,6 +43,18 @@ $statusLabels = [
     'cancelled' => 'Cancelled',
 ];
 $tripCount = count($trips);
+
+// Summary stats -- computed from data already loaded above, no extra
+// query needed.
+$statusCounts = ['planning' => 0, 'confirmed' => 0, 'completed' => 0, 'cancelled' => 0];
+$nextTrip = null;
+$today = date('Y-m-d');
+foreach ($trips as $trip) {
+    $statusCounts[$trip['status']] = ($statusCounts[$trip['status']] ?? 0) + 1;
+    if ($nextTrip === null && $trip['start_date'] >= $today && $trip['status'] !== 'cancelled') {
+        $nextTrip = $trip;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -60,6 +72,9 @@ $tripCount = count($trips);
         .trip-filter-bar select { padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: 6px; font-size: 0.9rem; background: var(--paper-white); }
         .trip-card[hidden] { display: none; }
         #trip-no-results { display: none; color: var(--ink-muted); padding: 2rem 0; text-align: center; }
+        .trip-stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .trip-stat { background: var(--paper-white); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1.1rem; font-size: 0.85rem; color: var(--ink-muted); }
+        .trip-stat strong { display: block; font-size: 1.3rem; color: var(--ink); font-family: 'Fraunces', serif; }
     </style>
 </head>
 <body>
@@ -93,6 +108,20 @@ $tripCount = count($trips);
             </div>
             <span class="trip-count"><?= $tripCount ?> <?= $tripCount === 1 ? 'journey' : 'journeys' ?></span>
         </section>
+
+        <?php if ($tripCount > 0): ?>
+            <div class="trip-stats">
+                <div class="trip-stat"><strong><?= $statusCounts['planning'] ?></strong>Planning</div>
+                <div class="trip-stat"><strong><?= $statusCounts['confirmed'] ?></strong>Confirmed</div>
+                <div class="trip-stat"><strong><?= $statusCounts['completed'] ?></strong>Completed</div>
+                <?php if ($nextTrip): ?>
+                    <div class="trip-stat">
+                        <strong><?= max(0, (int) ((strtotime($nextTrip['start_date']) - strtotime($today)) / 86400)) ?> day/s</strong>
+                        until <?= htmlspecialchars($nextTrip['name'], ENT_QUOTES, 'UTF-8') ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="trips-toolbar">
             <p class="section-label">Your journeys</p>

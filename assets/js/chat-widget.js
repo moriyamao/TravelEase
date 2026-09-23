@@ -22,6 +22,11 @@
     const userEmail = widget.dataset.userEmail || '';
 
     toggle.addEventListener('click', () => {
+        // Close the support conversation panel first, if it's open, so
+        // the two widgets never overlap on screen.
+        const supportPanel = document.getElementById('te-support-panel');
+        if (supportPanel && !supportPanel.hidden) supportPanel.hidden = true;
+
         panel.hidden = !panel.hidden;
         if (!panel.hidden) input.focus();
     });

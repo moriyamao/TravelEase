@@ -14,6 +14,11 @@
     let lastMessageCount = 0;
 
     toggle.addEventListener('click', () => {
+        // Close the AI chat panel first, if it's open, so the two
+        // widgets never overlap on screen.
+        const aiPanel = document.getElementById('te-chat-panel');
+        if (aiPanel && !aiPanel.hidden) aiPanel.hidden = true;
+
         panel.hidden = !panel.hidden;
         if (!panel.hidden) input.focus();
     });

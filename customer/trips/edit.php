@@ -123,10 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="dashboard">
         <header class="dashboard-header">
             <h1>Edit Trip</h1>
-            <a href="/customer/trips/view.php?id=<?= (int) $tripId ?>" class="logout-link">Cancel</a>
         </header>
 
         <div class="form-card">
+            <a href="/customer/trips/view.php?id=<?= (int) $tripId ?>" class="logout-link" style="display: inline-block; margin-bottom: 1.25rem;">&larr; Cancel</a>
+
             <?php if (!empty($errors)): ?>
                 <ul class="form-errors" role="alert">
                     <?php foreach ($errors as $error): ?>

@@ -248,5 +248,6 @@ $statusLabels = [
     </main>
 
     <?php require __DIR__ . '/../../includes/partials/chat_widget.php'; ?>
+    <?php require __DIR__ . '/../../includes/partials/support_chathead.php'; ?>
 </body>
 </html>
