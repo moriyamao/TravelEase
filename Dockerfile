@@ -29,10 +29,20 @@ COPY . /var/www/html/
 RUN mkdir -p /var/www/html/uploads/profile_pictures \
     && chown -R www-data:www-data /var/www/html/uploads
 
+# Run as the non-root www-data user rather than the image's default root,
+# so a compromised PHP script has no more privilege than it needs.
+# Apache's own runtime dirs (logs, pid, lock) need to be writable by
+# that user too, since they default to root-owned.
+RUN chown -R www-data:www-data /var/www/html \
+    && mkdir -p /var/run/apache2 /var/lock/apache2 \
+    && chown -R www-data:www-data /var/log/apache2 /var/run/apache2 /var/lock/apache2 /etc/apache2
+
 # Render injects PORT at runtime and expects the app to bind to it,
 # so rewrite Apache's port config at container start, not build time
 RUN printf '#!/bin/sh\nset -e\nPORT="${PORT:-80}"\nsed -ri "s/^Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf\nsed -ri "s/<VirtualHost \\*:[0-9]+>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf\nexec apache2-foreground\n' > /usr/local/bin/start-apache.sh \
     && chmod +x /usr/local/bin/start-apache.sh
+
+USER www-data
 
 EXPOSE 80
 
