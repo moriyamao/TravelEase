@@ -33,17 +33,17 @@ function get_db_connection(): PDO
         // Store and compare all timestamps in UTC regardless of the DB
         // server's configured timezone. Local-time display, if ever
         // needed, happens in the presentation layer — never in storage.
+        // Several queries in this codebase use double quotes around string
+        // literals (e.g. status = "open"), which MariaDB/local XAMPP treats
+        // as a plain string but MySQL 8's ANSI_QUOTES-inclusive default
+        // sql_mode treats as an identifier, causing "Unknown column" errors
+        // in production. Strip ANSI_QUOTES so both environments agree.
+        $pdo->exec(
+            "SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(
+                REPLACE(@@sql_mode, 'ANSI_QUOTES', ''), ',,', ','
+             ))"
+        );
         $pdo->exec("SET time_zone = '+00:00'");
-
-        // Aiven's MySQL 8.4 default sql_mode includes both ANSI_QUOTES and
-        // the ANSI combination mode. ANSI expands back out to ANSI_QUOTES
-        // (among others) the moment SET sql_mode runs, so stripping only
-        // the ANSI_QUOTES substring doesn't actually work -- it silently
-        // comes right back via the ANSI token. Both must be stripped in
-        // the same statement. Verified directly against Aiven: after this,
-        // double-quoted string literals (e.g. status = "open") parse
-        // correctly again, matching local MariaDB/XAMPP behavior.
-        $pdo->exec("SET sql_mode = REPLACE(REPLACE(@@sql_mode, 'ANSI_QUOTES', ''), 'ANSI,', '')");
     } catch (PDOException $e) {
         // Never leak DB connection details to the browser (§39 — Error Handling).
         error_log('TravelEase DB connection failed: ' . $e->getMessage());

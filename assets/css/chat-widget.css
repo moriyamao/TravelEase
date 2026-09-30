@@ -120,3 +120,18 @@
 @media (max-width: 420px) {
     .te-chat-panel { width: calc(100vw - 2rem); right: -0.5rem; }
 }
+.te-chat-disclaimer {
+    margin: 0;
+    padding: 0.5rem 0.75rem 0.65rem;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    color: #8a8a8a;
+    text-align: center;
+    border-top: 1px solid var(--line, #eee);
+    background: var(--paper-white, #fff);
+}
+
+.te-chat-disclaimer a {
+    color: var(--stamp, #C1440E);
+    text-decoration: underline;
+}

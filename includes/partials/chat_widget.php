@@ -22,6 +22,11 @@ $__chatUserEmail = $_SESSION['user_email'] ?? '';
             <input type="text" id="te-chat-input" placeholder="Ask a question..." autocomplete="off" maxlength="1000" required>
             <button type="submit">Send</button>
         </form>
+        <p class="te-chat-disclaimer">
+            AI can make mistakes. By using our chatbot, you agree to our
+            <a href="/terms.php" target="_blank" rel="noopener">Terms</a> and
+            <a href="/privacy.php" target="_blank" rel="noopener">Privacy Policy</a>.
+        </p>
     </div>
 </div>
 
