@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">TravelEase route mark</title>
+  <desc id="desc">A travel route shaped like the letter T inside a navy circular stamp.</desc>
+  <circle cx="256" cy="256" r="246" fill="#152b43"/>
+  <circle cx="256" cy="256" r="207" fill="none" stroke="#f6f2e8" stroke-opacity=".24" stroke-width="5"/>
+  <path d="M145 168H367" fill="none" stroke="#f6f2e8" stroke-width="31" stroke-linecap="round"/>
+  <path d="M256 173V290c0 68 34 103 100 108" fill="none" stroke="#bd4d28" stroke-width="31" stroke-linecap="round"/>
+  <circle cx="145" cy="168" r="19" fill="#f6f2e8"/>
+  <circle cx="367" cy="168" r="19" fill="#f6f2e8"/>
+  <circle cx="256" cy="290" r="20" fill="#f6f2e8" stroke="#bd4d28" stroke-width="12"/>
+  <path d="m351 362 56 41-63 23 12-29Z" fill="#f6f2e8"/>
+  <path d="M80 256a176 176 0 0 0 31 97" fill="none" stroke="#bd4d28" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="112" cy="355" r="12" fill="#bd4d28"/>
+</svg>

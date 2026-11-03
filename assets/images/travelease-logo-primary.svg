@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">TravelEase logo</title>
+  <desc id="desc">A navy travel-route monogram beside the TravelEase wordmark.</desc>
+  <g transform="translate(44 50)">
+    <circle cx="110" cy="110" r="106" fill="#152b43"/>
+    <circle cx="110" cy="110" r="89" fill="none" stroke="#f6f2e8" stroke-opacity=".24" stroke-width="2"/>
+    <path d="M62 72H158" fill="none" stroke="#f6f2e8" stroke-width="13" stroke-linecap="round"/>
+    <path d="M110 74V125c0 30 14 45 43 47" fill="none" stroke="#bd4d28" stroke-width="13" stroke-linecap="round"/>
+    <circle cx="62" cy="72" r="8" fill="#f6f2e8"/>
+    <circle cx="158" cy="72" r="8" fill="#f6f2e8"/>
+    <circle cx="110" cy="125" r="8" fill="#f6f2e8" stroke="#bd4d28" stroke-width="5"/>
+    <path d="m151 157 24 17-27 10 5-12Z" fill="#f6f2e8"/>
+    <path d="M34 110a76 76 0 0 0 13 42" fill="none" stroke="#bd4d28" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="48" cy="153" r="5" fill="#bd4d28"/>
+  </g>
+  <g transform="translate(300 78)">
+    <text x="0" y="93" fill="#152b43" font-family="Georgia, 'Times New Roman', serif" font-size="100" font-weight="700" letter-spacing="-5">Travel</text>
+    <text x="292" y="93" fill="#bd4d28" font-family="Georgia, 'Times New Roman', serif" font-size="100" font-weight="700" letter-spacing="-5">Ease</text>
+    <path d="M2 125H650" stroke="#dcd4c5" stroke-width="2"/>
+    <text x="2" y="164" fill="#6f706b" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="7">PLAN · ORGANIZE · GO</text>
+  </g>
+</svg>
