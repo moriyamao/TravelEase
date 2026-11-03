@@ -63,7 +63,7 @@ $daysUntilNextTrip = $nextTrip
     <title>My Trips — TravelEase</title>
     <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
-    <link rel="stylesheet" href="/assets/css/dashboard.css">
+    <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261103-2">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">
 </head>
