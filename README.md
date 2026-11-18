@@ -63,7 +63,7 @@ The scope evolved: the initial draft included agency bookings and payments; Phas
 Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`, `mbstring`, and `openssl`; AI support also needs `curl`. Google token verification needs outbound HTTPS and a correctly configured CA trust store. XAMPP can provide the database and PHP runtime.
 
 1. Clone the repository and enter its root directory.
-2. Copy `.env.example` to `.env`. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, a long random `APP_SECRET`, and `APP_ENV=development`. Keep `.env` out of version control.
+2. Copy `.env.example` to `.env`. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, a long random `APP_SECRET`, `APP_ENV=development`, `APP_URL=http://localhost:8000`, and the verification-email settings below. Keep `.env` out of version control.
 3. For a fresh database, import the base schema, then add the support tables and fields:
 
    ```sh
@@ -87,6 +87,19 @@ Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`
 The application uses root-relative URLs such as `/auth/login.php`. Serving it under `http://localhost/TravelEase/` without adjusting routing will break those links. With Apache, configure a dedicated document root at the repository root.
 
 Self-registration creates customer accounts. Provision staff/admin access through a trusted database administration process; registration does not accept a privileged role from the client.
+
+### Verification email (required for password sign-up)
+
+New password accounts must verify their email before signing in. Emails go through Brevo's HTTPS transactional API using PHP's curl extension; Render's free tier blocks outbound SMTP, so PHP `mail()` and SMTP are not used. Set these in `.env` locally and in the Render service's Environment settings in production:
+
+| Variable | Value |
+| --- | --- |
+| `APP_URL` | Public base URL with no trailing slash, e.g. `https://travelease-zp7o.onrender.com`. Required: verification links are never built from the request's Host header. |
+| `BREVO_API_KEY` | API key from Brevo > SMTP & API > API Keys. Secret: never commit it. |
+| `MAIL_FROM_EMAIL` | A sender address verified in Brevo > Senders. |
+| `MAIL_FROM_NAME` | Display name, e.g. `TravelEase`. |
+
+If any value is missing or Brevo rejects the request, no email is sent, the unused token is deleted, and registration says the email could not be sent. The resend page always shows the same message, so it does not reveal whether an account exists, and a failed send frees its 60-second retry window. "Sent" means Brevo accepted the message; later bounces or spam filtering are not tracked.
 
 ### Optional integrations
 

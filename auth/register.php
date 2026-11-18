@@ -57,10 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $userId = (int) $pdo->lastInsertId();
 
-                    if (!send_email_verification($pdo, $userId, $email, $name)) {
-                        error_log('TravelEase: verification email could not be sent to ' . $email);
+                    if (send_email_verification($pdo, $userId, $email, $name)) {
+                        $success = 'Account created. Check your email to verify your address before signing in.';
+                    } else {
+                        $success = 'Account created, but we could not send the verification email. Please try again later using "Resend verification email" on the sign-in page.';
                     }
-                    $success = 'Account created. Check your email to verify your address before signing in.';
 
                 } catch (PDOException $e) {
                     error_log('TravelEase registration failed: ' . $e->getMessage());
