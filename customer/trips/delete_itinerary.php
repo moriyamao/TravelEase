@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/session.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/trip_membership.php';
 
 require_role(['customer']);
 
@@ -24,17 +25,10 @@ if ($itemId === false || $itemId === null) {
 
 $pdo = get_db_connection();
 
-// Find the trip_id first (for the redirect) while confirming
-// ownership through the join -- if this returns nothing, the item
-// either doesn't exist or isn't the logged-in user's.
-$stmt = $pdo->prepare(
-    'SELECT i.trip_id
-     FROM itinerary_items i
-     INNER JOIN trips t ON t.id = i.trip_id
-     WHERE i.id = :id AND t.user_id = :user_id
-     LIMIT 1'
-);
-$stmt->execute(['id' => $itemId, 'user_id' => current_user_id()]);
+// Find the item's trip, then authorize the trip role (owner or editor)
+// before deleting. Non-members get the same 404 as a missing item.
+$stmt = $pdo->prepare('SELECT trip_id FROM itinerary_items WHERE id = :id LIMIT 1');
+$stmt->execute(['id' => $itemId]);
 $row = $stmt->fetch();
 
 if (!$row) {
@@ -42,14 +36,12 @@ if (!$row) {
     die('Item not found.');
 }
 
+require_trip_permission($pdo, (int) $row['trip_id'], 'edit_itinerary');
+
 try {
-    // Ownership re-checked in the DELETE itself, not just the SELECT above.
-    $stmt = $pdo->prepare(
-        'DELETE i FROM itinerary_items i
-         INNER JOIN trips t ON t.id = i.trip_id
-         WHERE i.id = :id AND t.user_id = :user_id'
-    );
-    $stmt->execute(['id' => $itemId, 'user_id' => current_user_id()]);
+    // Scoped to the trip that was authorized above.
+    $stmt = $pdo->prepare('DELETE FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
+    $stmt->execute(['id' => $itemId, 'trip_id' => $row['trip_id']]);
 
     header('Location: /customer/trips/view.php?id=' . $row['trip_id']);
     exit;

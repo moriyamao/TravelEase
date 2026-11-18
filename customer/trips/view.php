@@ -3,6 +3,8 @@ require_once __DIR__ . '/../../includes/session.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/trip_recommendations.php';
+require_once __DIR__ . '/../../includes/trip_membership.php';
 
 require_role(['customer']);
 
@@ -13,22 +15,21 @@ if ($tripId === false || $tripId === null) {
 }
 
 $pdo = get_db_connection();
+$tripRole = require_trip_permission($pdo, $tripId, 'view');
+$canEditItinerary = trip_role_can($tripRole, 'edit_itinerary');
+$canManageTrip = trip_role_can($tripRole, 'manage_trip');
 
-// Ownership check is part of the WHERE clause itself, not a separate
-// "is this mine?" check after the fact -- a trip belonging to another
-// user simply does not match this query, full stop (§26 -- IDOR
-// prevention). Changing ?id= in the URL cannot expose another user's
-// trip.
+// Access was authorized above through the trip role, so ?id= values
+// for trips the user is not a member of never reach this query (§26).
 $stmt = $pdo->prepare(
     'SELECT id, name, destination, start_date, end_date, status,
             budget_currency, budget_amount, notes, created_at
      FROM trips
-     WHERE id = :id AND user_id = :user_id
+     WHERE id = :id
      LIMIT 1'
 );
 $stmt->execute([
     'id'      => $tripId,
-    'user_id' => current_user_id(),
 ]);
 $trip = $stmt->fetch();
 
@@ -37,9 +38,29 @@ if (!$trip) {
     die('Trip not found.');
 }
 
-// Itinerary items for this trip -- the trip was already confirmed to
-// belong to the logged-in user above, so this second query is safe
-// to filter by trip_id alone.
+$recommendations = [];
+$recommendationError = null;
+$interests = '';
+$pace = 'balanced';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recommend' && $canEditItinerary) {
+    $interests = trim((string) ($_POST['interests'] ?? ''));
+    $pace = (string) ($_POST['pace'] ?? 'balanced');
+    if (!csrf_verify($_POST['csrf_token'] ?? null)) {
+        $recommendationError = 'Your session expired. Reload the page and try again.';
+    } elseif (mb_strlen($interests) > 120 || !in_array($pace, ['relaxed', 'balanced', 'packed'], true)) {
+        $recommendationError = 'Please enter up to 120 characters of interests and choose a valid pace.';
+    } elseif (($_SESSION['last_trip_recommendation_at'] ?? 0) > time() - 30) {
+        $recommendationError = 'Please wait a moment before requesting more ideas.';
+    } else {
+        $_SESSION['last_trip_recommendation_at'] = time();
+        $result = trip_recommendations($trip, $interests, $pace);
+        $recommendations = $result['ideas'];
+        $recommendationError = $result['error'];
+    }
+}
+
+// Itinerary items for this trip -- membership was already authorized
+// above, so this second query is safe to filter by trip_id alone.
 $stmt = $pdo->prepare(
     'SELECT id, item_date, item_time, title, location, notes, estimated_cost, actual_cost
      FROM itinerary_items
@@ -63,8 +84,40 @@ foreach ($items as $item) {
     }
 }
 
+// Members are visible to every member so each knows who can see or
+// change the trip. The owner comes from trips.user_id (canonical).
+$stmt = $pdo->prepare(
+    'SELECT u.name, \'owner\' AS role
+     FROM trips t JOIN users u ON u.id = t.user_id
+     WHERE t.id = :owner_trip_id
+     UNION ALL
+     SELECT u.name, m.role
+     FROM trip_memberships m
+     JOIN trips t ON t.id = m.trip_id
+     JOIN users u ON u.id = m.user_id
+     WHERE m.trip_id = :member_trip_id AND m.user_id <> t.user_id AND m.role <> \'owner\''
+);
+$stmt->execute(['owner_trip_id' => $tripId, 'member_trip_id' => $tripId]);
+$members = $stmt->fetchAll();
+
+$pendingInvites = [];
+if ($canManageTrip) {
+    $stmt = $pdo->prepare(
+        'SELECT u.email, i.role, i.expires_at
+         FROM trip_invitations i JOIN users u ON u.id = i.invitee_id
+         WHERE i.trip_id = :trip_id AND i.status = \'pending\' AND i.expires_at > UTC_TIMESTAMP()
+         ORDER BY i.created_at DESC'
+    );
+    $stmt->execute(['trip_id' => $tripId]);
+    $pendingInvites = $stmt->fetchAll();
+}
+
 $itineraryErrors = $_SESSION['itinerary_errors'] ?? [];
 unset($_SESSION['itinerary_errors']);
+$inviteNotice = $_SESSION['trip_invite_notice'] ?? null;
+unset($_SESSION['trip_invite_notice']);
+$inviteError = $_SESSION['trip_invite_error'] ?? null;
+unset($_SESSION['trip_invite_error']);
 
 $statusLabels = [
     'planning'  => 'Planning',
@@ -106,6 +159,54 @@ $statusLabels = [
         <section class="itinerary-section">
             <h2>Itinerary</h2>
 
+            <?php if ($canEditItinerary): ?>
+            <section class="trip-ideas" aria-labelledby="trip-ideas-title">
+                <div class="trip-ideas-heading">
+                    <div>
+                        <p class="eyebrow">Planning inspiration</p>
+                        <h3 id="trip-ideas-title">Ideas for <?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></h3>
+                        <p>Generate a few AI suggestions, edit one, then add it to your itinerary. Place details may be inaccurate; check them before you go. Your destination, dates, budget, interests, and pace are sent to the AI service for this request.</p>
+                    </div>
+                    <form class="trip-ideas-request" method="post" action="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="recommend">
+                        <label for="trip-interests">What do you enjoy?</label>
+                        <input id="trip-interests" name="interests" maxlength="120" placeholder="Art, food, nature..." value="<?= htmlspecialchars($interests, ENT_QUOTES, 'UTF-8') ?>">
+                        <label for="trip-pace">Travel pace</label>
+                        <select id="trip-pace" name="pace">
+                            <option value="relaxed" <?= $pace === 'relaxed' ? 'selected' : '' ?>>Relaxed</option>
+                            <option value="balanced" <?= $pace === 'balanced' ? 'selected' : '' ?>>Balanced</option>
+                            <option value="packed" <?= $pace === 'packed' ? 'selected' : '' ?>>Packed</option>
+                        </select>
+                        <button type="submit" class="btn-primary">Suggest activities</button>
+                    </form>
+                </div>
+                <?php if ($recommendationError): ?>
+                    <p class="form-errors" role="alert"><?= htmlspecialchars($recommendationError, ENT_QUOTES, 'UTF-8') ?></p>
+                <?php endif; ?>
+                <?php if ($recommendations): ?>
+                    <div class="trip-ideas-grid">
+                        <?php foreach ($recommendations as $index => $idea): ?>
+                            <form class="trip-idea-card" method="post" action="/customer/trips/itinerary_add.php">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                <p class="eyebrow">AI suggestion <?= $index + 1 ?></p>
+                                <label for="idea-title-<?= $index ?>">Activity</label>
+                                <input id="idea-title-<?= $index ?>" name="title" maxlength="150" required value="<?= htmlspecialchars($idea['title'], ENT_QUOTES, 'UTF-8') ?>">
+                                <label for="idea-date-<?= $index ?>">Day</label>
+                                <input id="idea-date-<?= $index ?>" type="date" name="item_date" min="<?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>" max="<?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>" required value="<?= htmlspecialchars($idea['date'], ENT_QUOTES, 'UTF-8') ?>">
+                                <label for="idea-location-<?= $index ?>">Place</label>
+                                <input id="idea-location-<?= $index ?>" name="location" maxlength="150" value="<?= htmlspecialchars($idea['location'], ENT_QUOTES, 'UTF-8') ?>">
+                                <label for="idea-notes-<?= $index ?>">Why this place?</label>
+                                <textarea id="idea-notes-<?= $index ?>" name="notes" rows="2" maxlength="2000"><?= htmlspecialchars($idea['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                                <button type="submit">Add to itinerary</button>
+                            </form>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+            <?php endif; ?>
+
             <?php if (!empty($itineraryErrors)): ?>
                 <ul class="form-errors" role="alert">
                     <?php foreach ($itineraryErrors as $error): ?>
@@ -115,7 +216,7 @@ $statusLabels = [
             <?php endif; ?>
 
             <?php if (empty($itemsByDate)): ?>
-                <p class="empty-state">No itinerary items yet. Add your first stop below.</p>
+                <p class="empty-state">No itinerary items yet.<?= $canEditItinerary ? ' Add your first stop below.' : '' ?></p>
             <?php else: ?>
                 <?php foreach ($itemsByDate as $date => $dayItems): ?>
                     <div class="itinerary-day">
@@ -145,6 +246,7 @@ $statusLabels = [
                                     <?php if (!empty($item['notes'])): ?>
                                         <p class="itinerary-notes"><?= nl2br(htmlspecialchars($item['notes'], ENT_QUOTES, 'UTF-8')) ?></p>
                                     <?php endif; ?>
+                                    <?php if ($canEditItinerary): ?>
                                     <div class="itinerary-item-actions">
                                         <a href="/customer/trips/itinerary_edit.php?id=<?= (int) $item['id'] ?>">Edit</a>
                                         <form method="post" action="/customer/trips/delete_itinerary.php"
@@ -154,6 +256,7 @@ $statusLabels = [
                                             <button type="submit" class="link-danger">Delete</button>
                                         </form>
                                     </div>
+                                    <?php endif; ?>
                                 </li>
                             <?php endforeach; ?>
                         </ul>
@@ -161,6 +264,7 @@ $statusLabels = [
                 <?php endforeach; ?>
             <?php endif; ?>
 
+            <?php if ($canEditItinerary): ?>
             <details class="add-item-form">
                 <summary>+ Add itinerary item</summary>
                 <form method="post" action="/customer/trips/itinerary_add.php" novalidate>
@@ -203,9 +307,43 @@ $statusLabels = [
                     <button type="submit">Add Item</button>
                 </form>
             </details>
+            <?php endif; ?>
             </section>
 
             <aside class="trip-detail-card">
+                <?php if ($canManageTrip): ?>
+                    <h2>Invite a traveler</h2>
+                    <?php if ($inviteNotice): ?><p role="status"><?= htmlspecialchars($inviteNotice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+                    <?php if ($inviteError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($inviteError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+                    <form method="post" action="/customer/trips/invite.php">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                        <label for="invite-email">Existing customer email</label>
+                        <input id="invite-email" type="email" name="email" required>
+                        <label for="invite-role">Trip role</label>
+                        <select id="invite-role" name="role">
+                            <option value="editor">Editor</option>
+                            <option value="commenter">Commenter</option>
+                            <option value="viewer">Viewer</option>
+                        </select>
+                        <button type="submit">Send invitation</button>
+                    </form>
+                    <?php if ($pendingInvites): ?>
+                        <h3>Pending invitations</h3>
+                        <ul class="trip-member-list">
+                            <?php foreach ($pendingInvites as $invite): ?>
+                                <li><?= htmlspecialchars($invite['email'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(ucfirst($invite['role']), ENT_QUOTES, 'UTF-8') ?> &middot; expires <?= htmlspecialchars(date('M j, Y', strtotime($invite['expires_at'])), ENT_QUOTES, 'UTF-8') ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                <?php endif; ?>
+                <h2>Trip members</h2>
+                <p>Your role: <strong><?= htmlspecialchars(ucfirst($tripRole), ENT_QUOTES, 'UTF-8') ?></strong><?= $canEditItinerary ? '' : ' (view only)' ?></p>
+                <ul class="trip-member-list">
+                    <?php foreach ($members as $member): ?>
+                        <li><?= htmlspecialchars($member['name'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(ucfirst($member['role']), ENT_QUOTES, 'UTF-8') ?></li>
+                    <?php endforeach; ?>
+                </ul>
                 <dl class="trip-detail-list">
                     <dt>Destination</dt>
                     <dd><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></dd>
@@ -218,6 +356,7 @@ $statusLabels = [
                         <dd class="trip-notes"><?= nl2br(htmlspecialchars($trip['notes'], ENT_QUOTES, 'UTF-8')) ?></dd>
                     <?php endif; ?>
                 </dl>
+                <?php if ($canManageTrip): ?>
                 <div class="trip-detail-actions">
                     <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-primary">Edit trip</a>
                     <form method="post" action="/customer/trips/delete.php" onsubmit="return confirm('Delete this trip? This cannot be undone.');">
@@ -226,6 +365,7 @@ $statusLabels = [
                         <button type="submit" class="btn-danger">Delete</button>
                     </form>
                 </div>
+                <?php endif; ?>
             </aside>
 
             <section class="budget-summary">

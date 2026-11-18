@@ -1,7 +1,8 @@
--- TravelEase Database Schema
--- Milestone 1: Users & Authentication only.
--- Additional tables (trips, destinations, budgets, booking_requests, etc.)
--- will be added in later milestones as those features are implemented.
+-- TravelEase Database Schema -- FRESH INSTALLS ONLY.
+-- Never run this over an existing database; apply only the missing
+-- database/migration_*.sql files instead. This file covers users,
+-- email verification, trips, trip memberships/invitations and
+-- itinerary items; the support tables come from migrations 007-009.
 
 CREATE DATABASE IF NOT EXISTS travelease
   CHARACTER SET utf8mb4
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name            VARCHAR(100)        NOT NULL,
     email           VARCHAR(255)        NOT NULL,
+    email_verified_at TIMESTAMP        NULL,
     password_hash   VARCHAR(255)        NULL,
     google_subject  VARCHAR(255)        NULL,
     role            ENUM('customer', 'staff', 'admin') NOT NULL DEFAULT 'customer',
@@ -24,6 +26,27 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE KEY uq_users_email (email),
     UNIQUE KEY uq_users_google_subject (google_subject)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_email_verification_token_hash (token_hash),
+    INDEX idx_email_verification_user (user_id),
+    CONSTRAINT fk_email_verification_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS email_verification_resend_limits (
+    user_id INT UNSIGNED NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    last_sent_at TIMESTAMP NULL,
+    PRIMARY KEY (user_id, ip_address),
+    CONSTRAINT fk_email_verification_resend_limit_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ARCHITECTURE NOTES
 --
@@ -70,6 +93,32 @@ CREATE TABLE IF NOT EXISTS trips (
 -- and budget_amount
 -- If you already had a database from before trips existed, run that
 -- migration file instead of re-running this whole schema
+
+CREATE TABLE IF NOT EXISTS trip_memberships (
+    trip_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    role ENUM('owner', 'editor', 'commenter', 'viewer') NOT NULL,
+    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (trip_id, user_id),
+    INDEX idx_trip_memberships_user (user_id),
+    CONSTRAINT fk_trip_memberships_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_trip_memberships_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS trip_invitations (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trip_id INT UNSIGNED NOT NULL,
+    invitee_id INT UNSIGNED NOT NULL,
+    role ENUM('editor', 'commenter', 'viewer') NOT NULL,
+    status ENUM('pending', 'accepted', 'declined', 'expired', 'revoked') NOT NULL DEFAULT 'pending',
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP NULL,
+    UNIQUE KEY uq_trip_invitation_recipient (trip_id, invitee_id),
+    INDEX idx_trip_invitations_recipient (invitee_id, status),
+    CONSTRAINT fk_trip_invitations_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_trip_invitations_recipient FOREIGN KEY (invitee_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS itinerary_items (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

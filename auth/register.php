@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/email_verification.php';
 
 // Already logged in? No need to register again.
 if (is_logged_in()) {
@@ -44,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
 
                     $stmt = $pdo->prepare(
-                        'INSERT INTO users (name, email, password_hash, role)
-                         VALUES (:name, :email, :password_hash, :role)'
+                        'INSERT INTO users (name, email, password_hash, email_verified_at, role)
+                         VALUES (:name, :email, :password_hash, NULL, :role)'
                     );
                     $stmt->execute([
                         'name'          => $name,
@@ -56,15 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $userId = (int) $pdo->lastInsertId();
 
-                    // Log the new user in immediately.
-                    session_regenerate_id(true);
-                   $_SESSION['user_id']    = $userId;
-                   $_SESSION['user_role']  = 'customer';
-                   $_SESSION['user_name']  = $name;
-                   $_SESSION['user_email'] = $email;
-
-                    header('Location: /includes/redirect_dashboard.php');
-                    exit;
+                    if (!send_email_verification($pdo, $userId, $email, $name)) {
+                        error_log('TravelEase: verification email could not be sent to ' . $email);
+                    }
+                    $success = 'Account created. Check your email to verify your address before signing in.';
 
                 } catch (PDOException $e) {
                     error_log('TravelEase registration failed: ' . $e->getMessage());
@@ -94,6 +90,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <li><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></li>
                 <?php endforeach; ?>
             </ul>
+        <?php endif; ?>
+
+        <?php if (!empty($success)): ?>
+            <p class="success-message" role="status"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></p>
         <?php endif; ?>
 
         <form method="post" action="/auth/register.php" novalidate>
