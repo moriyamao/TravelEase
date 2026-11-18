@@ -11,7 +11,7 @@ require_login();
 $pdo = get_db_connection();
 $userId = current_user_id();
 
-$stmt = $pdo->prepare('SELECT name, email, profile_picture FROM users WHERE id = :id LIMIT 1');
+$stmt = $pdo->prepare('SELECT name, email, profile_picture, google_subject FROM users WHERE id = :id LIMIT 1');
 $stmt->execute(['id' => $userId]);
 $user = $stmt->fetch();
 
@@ -159,6 +159,36 @@ $backLink = $dashboardByRole[current_user_role()] ?? '/public/index.php';
                 <button type="submit">Save Changes</button>
             </form>
         </div>
+        <?php if ($user['google_subject'] === null): ?>
+        <div class="form-card">
+            <h2>Link Google account</h2>
+            <p class="field-hint">Use your TravelEase password and a Google account with the same email address.</p>
+            <label for="google-link-password">TravelEase password</label>
+            <input type="password" id="google-link-password" required>
+            <div id="google-link-error" class="form-errors" role="alert" style="display:none"></div>
+            <div id="google-link-button"></div>
+        </div>
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <script>
+            window.onload = function () {
+                google.accounts.id.initialize({
+                    client_id: <?= json_encode(getenv('GOOGLE_CLIENT_ID') ?: '', JSON_UNESCAPED_SLASHES) ?>,
+                    callback: function (response) {
+                        const errorBox = document.getElementById('google-link-error');
+                        const data = new URLSearchParams();
+                        data.set('credential', response.credential);
+                        data.set('password', document.getElementById('google-link-password').value);
+                        data.set('csrf_token', <?= json_encode(csrf_token()) ?>);
+                        fetch('/auth/google_link.php', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: data.toString() })
+                            .then(async res => { const body = await res.json(); if (!res.ok) throw new Error(body.error || 'Google linking failed.'); return body; })
+                            .then(() => window.location.reload())
+                            .catch(error => { errorBox.textContent = error.message; errorBox.style.display = 'block'; });
+                    }
+                });
+                google.accounts.id.renderButton(document.getElementById('google-link-button'), {theme: 'outline', size: 'large', width: 320});
+            };
+        </script>
+        <?php endif; ?>
     </main>
 </body>
 </html>

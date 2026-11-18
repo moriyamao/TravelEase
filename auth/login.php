@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = get_db_connection();
 
             $stmt = $pdo->prepare(
-                'SELECT id, name, email, password_hash, role FROM users WHERE email = :email LIMIT 1'
+                'SELECT id, name, email, password_hash, email_verified_at, role FROM users WHERE email = :email LIMIT 1'
             );
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch();
@@ -54,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 || !password_verify($password, $user['password_hash'])) {
                 $_SESSION['login_attempts']++;
                 $errors[] = 'Incorrect email or password.';
+            } elseif ($user['email_verified_at'] === null) {
+                $errors[] = 'Please verify your email address before signing in. You can request a new verification email below.';
             } else {
                 $_SESSION['login_attempts'] = 0;
 
@@ -107,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p class="auth-alt-action">
             Don't have an account? <a href="/auth/register.php">Create account</a>
         </p>
+        <p class="auth-alt-action"><a href="/auth/resend_verification.php">Resend verification email</a></p>
 
         <div class="auth-divider"><span>or</span></div>
 

@@ -10,13 +10,14 @@ This is a Mapúa University academic team project. The repository has progressed
 
 | Area | Implemented behavior |
 | --- | --- |
-| Accounts | Email/password registration and login, Google Sign-In, logout, role-based routing |
+| Accounts | Email/password registration and login, email verification, Google Sign-In with explicit account linking, logout, role-based routing |
 | Trip planning | Create, view, edit, and delete customer-owned trips with destination, dates, status, and notes |
+| Collaboration | Owners invite verified customers by exact email as Editor, Commenter, or Viewer; invitees accept or decline from their dashboard. Editors change the itinerary; Commenters and Viewers are read-only (comments are not built yet). Only the owner edits trip details, invites, or deletes the trip |
 | Itineraries | Add, edit, and remove dated activities with optional time, location, notes, and costs |
 | Budgeting | Trip currency and budget, estimated/actual itinerary costs, totals, and remaining/over-budget display |
 | Profiles | Profile editing and validated profile-picture uploads |
 | Support | AI support widget, escalation queue, customer/staff message threads, staff replies and resolution |
-| Staff | Trip oversight and status updates, support dashboard and escalation handling |
+| Staff | Read-only trip oversight, support dashboard and escalation handling |
 | Administration | User listing, role updates, and account deletion |
 | Information | Public Terms and Privacy pages, AI disclaimer |
 
@@ -48,7 +49,7 @@ The scope evolved: the initial draft included agency bookings and payments; Phas
 | --- | --- |
 | `auth/` | Registration, password login, Google login, logout |
 | `customer/` | Customer dashboard, trips, itinerary actions, support messages |
-| `staff/` | Staff dashboard, trip status actions, support queue and replies |
+| `staff/` | Read-only staff dashboard, support queue and replies |
 | `admin/` | User administration and role changes |
 | `chat/ask.php` | Authenticated chat endpoint and escalation recording |
 | `includes/` | Authentication/session checks, CSRF, validation, Google token verification, AI helper, shared widgets |
@@ -62,7 +63,7 @@ The scope evolved: the initial draft included agency bookings and payments; Phas
 Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`, `mbstring`, and `openssl`; AI support also needs `curl`. Google token verification needs outbound HTTPS and a correctly configured CA trust store. XAMPP can provide the database and PHP runtime.
 
 1. Clone the repository and enter its root directory.
-2. Copy `.env.example` to `.env`. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, a long random `APP_SECRET`, and `APP_ENV=development`. Keep `.env` out of version control.
+2. Copy `.env.example` to `.env`. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, a long random `APP_SECRET`, `APP_ENV=development`, `APP_URL=http://localhost:8000`, and the verification-email settings below. Keep `.env` out of version control.
 3. For a fresh database, import the base schema, then add the support tables and fields:
 
    ```sh
@@ -72,7 +73,7 @@ Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`
    mysql -u root -p travelease < database/migration_009_add_escalation_messages.sql
    ```
 
-   Replace `travelease` if using a different database name. The base schema includes Google subject, trips, profile picture, itinerary, and budget fields; it does **not** include the support tables. For an existing installation, inspect its schema and apply only missing migrations in numerical order. Do not blindly rerun `ALTER TABLE` or message-backfill migrations.
+   Replace `travelease` if using a different database name. The base schema includes Google subject, email verification, trips, trip memberships and invitations, profile picture, itinerary, and budget fields; it does **not** include the support tables. For an existing installation, inspect its schema and apply only missing migrations in numerical order. Do not blindly rerun `ALTER TABLE` or message-backfill migrations.
 
 4. Ensure `uploads/profile_pictures/` exists and is writable by PHP for profile uploads.
 5. Start the development server **from the repository root**:
@@ -86,6 +87,19 @@ Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`
 The application uses root-relative URLs such as `/auth/login.php`. Serving it under `http://localhost/TravelEase/` without adjusting routing will break those links. With Apache, configure a dedicated document root at the repository root.
 
 Self-registration creates customer accounts. Provision staff/admin access through a trusted database administration process; registration does not accept a privileged role from the client.
+
+### Verification email (required for password sign-up)
+
+New password accounts must verify their email before signing in. Emails go through Brevo's HTTPS transactional API using PHP's curl extension; Render's free tier blocks outbound SMTP, so PHP `mail()` and SMTP are not used. Set these in `.env` locally and in the Render service's Environment settings in production:
+
+| Variable | Value |
+| --- | --- |
+| `APP_URL` | Public base URL with no trailing slash, e.g. `https://travelease-zp7o.onrender.com`. Required: verification links are never built from the request's Host header. |
+| `BREVO_API_KEY` | API key from Brevo > SMTP & API > API Keys. Secret: never commit it. |
+| `MAIL_FROM_EMAIL` | A sender address verified in Brevo > Senders. |
+| `MAIL_FROM_NAME` | Display name, e.g. `TravelEase`. |
+
+If any value is missing or Brevo rejects the request, no email is sent, the unused token is deleted, and registration says the email could not be sent. The resend page always shows the same message, so it does not reveal whether an account exists, and a failed send frees its 60-second retry window. "Sent" means Brevo accepted the message; later bounces or spam filtering are not tracked.
 
 ### Optional integrations
 
@@ -109,7 +123,7 @@ Useful smoke checks for a new environment include login/logout, denied customer 
 - Protect configuration, environment files, SQL files, and internal documents from direct HTTP access when serving the repository root. Do not treat the development server or the current container configuration as a complete production hardening baseline.
 - Uploaded profile pictures use local storage. Render's ephemeral filesystem can discard them on restart/redeploy; durable storage requires a persistent disk or external object storage.
 - Login and chat rate limits are per-session, not shared limits across sessions or hosts.
-- Password reset, email verification, and manual Google/password account linking are not implemented.
+- Password reset is not implemented. Collaboration lacks member removal, role changes, ownership transfer, leaving a trip, invitation email, and comments.
 - The deployment report describes a database TLS configuration, but the current `config/database.php` does not explicitly configure PDO TLS options. Verify the actual connection configuration before relying on encrypted database transport.
 - AI answers can be inaccurate, and human follow-up depends on staff availability. Do not submit payment credentials or other sensitive information to the chat.
 

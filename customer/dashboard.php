@@ -19,6 +19,25 @@ $stmt = $pdo->prepare(
 $stmt->execute(['user_id' => current_user_id()]);
 $trips = $stmt->fetchAll();
 
+$stmt = $pdo->prepare(
+    'SELECT t.id, t.name, t.destination, t.start_date, t.end_date, m.role
+     FROM trip_memberships m
+     JOIN trips t ON t.id = m.trip_id
+     WHERE m.user_id = :user_id AND m.role <> :owner
+     ORDER BY t.start_date ASC'
+);
+$stmt->execute(['user_id' => current_user_id(), 'owner' => 'owner']);
+$sharedTrips = $stmt->fetchAll();
+
+$stmt = $pdo->prepare(
+    'SELECT i.id, i.role, t.name, t.destination
+     FROM trip_invitations i JOIN trips t ON t.id = i.trip_id
+     WHERE i.invitee_id = :user_id AND i.status = :status AND i.expires_at > UTC_TIMESTAMP()
+     ORDER BY i.created_at DESC'
+);
+$stmt->execute(['user_id' => current_user_id(), 'status' => 'pending']);
+$pendingInvitations = $stmt->fetchAll();
+
 // Unread staff replies to this customer's own support requests.
 $stmt = $pdo->prepare(
     'SELECT id, message, staff_reply, replied_at
@@ -216,6 +235,38 @@ $daysUntilNextTrip = $nextTrip
                 <p id="trip-no-results">No trips match your search.</p>
             <?php endif; ?>
         </section>
+
+        <?php if ($sharedTrips): ?>
+            <section class="journeys-section" aria-labelledby="shared-heading">
+                <h2 id="shared-heading">Shared with you</h2>
+                <div class="trip-grid">
+                    <?php foreach ($sharedTrips as $sharedTrip): ?>
+                        <a class="trip-card" href="/customer/trips/view.php?id=<?= (int) $sharedTrip['id'] ?>">
+                            <div class="trip-card-content">
+                                <span class="status-badge"><?= htmlspecialchars(ucfirst($sharedTrip['role']), ENT_QUOTES, 'UTF-8') ?></span>
+                                <h3><?= htmlspecialchars($sharedTrip['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                <p class="trip-destination"><?= htmlspecialchars($sharedTrip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
+                                <p><?= htmlspecialchars($sharedTrip['start_date'], ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars($sharedTrip['end_date'], ENT_QUOTES, 'UTF-8') ?></p>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+        <?php if ($pendingInvitations): ?>
+            <section class="journeys-section" aria-labelledby="pending-heading">
+                <h2 id="pending-heading">Pending invitations</h2>
+                <?php foreach ($pendingInvitations as $invitation): ?>
+                    <p><?= htmlspecialchars($invitation['name'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($invitation['destination'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars(ucfirst($invitation['role']), ENT_QUOTES, 'UTF-8') ?></p>
+                    <form method="post" action="/customer/trips/respond_invitation.php">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="invitation_id" value="<?= (int) $invitation['id'] ?>">
+                        <button name="decision" value="accept">Accept</button>
+                        <button name="decision" value="decline">Decline</button>
+                    </form>
+                <?php endforeach; ?>
+            </section>
+        <?php endif; ?>
     </main>
 
     <?php require __DIR__ . '/../includes/partials/chat_widget.php'; ?>

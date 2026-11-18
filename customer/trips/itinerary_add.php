@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
+require_once __DIR__ . '/../../includes/trip_membership.php';
 
 require_role(['customer']);
 
@@ -26,13 +27,13 @@ if ($tripId === false || $tripId === null) {
 
 $pdo = get_db_connection();
 
-// Confirm this trip belongs to the logged-in user BEFORE touching
-// itinerary_items at all -- an item has no user_id of its own, so
-// this parent-trip ownership check is the only thing standing
-// between a customer and someone else's itinerary (§26 -- IDOR
-// prevention, two levels deep).
-$stmt = $pdo->prepare('SELECT start_date, end_date, budget_currency FROM trips WHERE id = :id AND user_id = :user_id LIMIT 1');
-$stmt->execute(['id' => $tripId, 'user_id' => current_user_id()]);
+// Authorize against the parent trip BEFORE touching itinerary_items
+// at all -- an item has no user_id of its own, so the trip role
+// (owner or editor) is the only thing standing between a customer and
+// someone else's itinerary (§26 -- IDOR prevention, two levels deep).
+require_trip_permission($pdo, $tripId, 'edit_itinerary');
+$stmt = $pdo->prepare('SELECT start_date, end_date, budget_currency FROM trips WHERE id = :id LIMIT 1');
+$stmt->execute(['id' => $tripId]);
 $trip = $stmt->fetch();
 
 if (!$trip) {

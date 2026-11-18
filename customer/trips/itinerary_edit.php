@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
+require_once __DIR__ . '/../../includes/trip_membership.php';
 
 require_role(['customer']);
 
@@ -16,34 +17,26 @@ if ($itemId === false || $itemId === null) {
 
 $pdo = get_db_connection();
 
-/**
- * Loads an itinerary item joined through its trip, checking the
- * trip's ownership in the same query. If the item exists but belongs
- * to another user's trip, this returns null -- indistinguishable from
- * "doesn't exist" to the requester, which is the correct behavior.
- */
-function load_owned_item(PDO $pdo, int $itemId, int $userId): ?array
-{
-    $stmt = $pdo->prepare(
-        'SELECT i.id, i.trip_id, i.item_date, i.item_time, i.title, i.location, i.notes,
-                i.estimated_cost, i.actual_cost,
-                t.start_date AS trip_start, t.end_date AS trip_end, t.name AS trip_name,
-                t.budget_currency
-         FROM itinerary_items i
-         INNER JOIN trips t ON t.id = i.trip_id
-         WHERE i.id = :id AND t.user_id = :user_id
-         LIMIT 1'
-    );
-    $stmt->execute(['id' => $itemId, 'user_id' => $userId]);
-    $item = $stmt->fetch();
-    return $item ?: null;
-}
-
-$item = load_owned_item($pdo, $itemId, current_user_id());
+$stmt = $pdo->prepare(
+    'SELECT i.id, i.trip_id, i.item_date, i.item_time, i.title, i.location, i.notes,
+            i.estimated_cost, i.actual_cost,
+            t.start_date AS trip_start, t.end_date AS trip_end, t.name AS trip_name,
+            t.budget_currency
+     FROM itinerary_items i
+     INNER JOIN trips t ON t.id = i.trip_id
+     WHERE i.id = :id
+     LIMIT 1'
+);
+$stmt->execute(['id' => $itemId]);
+$item = $stmt->fetch();
 if (!$item) {
     http_response_code(404);
     die('Item not found.');
 }
+
+// Owners and editors only; anyone else gets the same 404 as a missing
+// trip, so item IDs on other people's trips reveal nothing (§26).
+require_trip_permission($pdo, (int) $item['trip_id'], 'edit_itinerary');
 
 $errors   = [];
 $itemDate = $item['item_date'];
@@ -77,15 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
-                // WHERE joins through trips again on the UPDATE itself --
-                // not relying solely on the earlier SELECT for ownership.
+                // Scoped to the trip that was authorized above.
                 $stmt = $pdo->prepare(
-                    'UPDATE itinerary_items i
-                     INNER JOIN trips t ON t.id = i.trip_id
-                     SET i.item_date = :item_date, i.item_time = :item_time,
-                         i.title = :title, i.location = :location, i.notes = :notes,
-                         i.estimated_cost = :estimated_cost, i.actual_cost = :actual_cost
-                     WHERE i.id = :id AND t.user_id = :user_id'
+                    'UPDATE itinerary_items
+                     SET item_date = :item_date, item_time = :item_time,
+                         title = :title, location = :location, notes = :notes,
+                         estimated_cost = :estimated_cost, actual_cost = :actual_cost
+                     WHERE id = :id AND trip_id = :trip_id'
                 );
                 $stmt->execute([
                     'item_date'      => $itemDate,
@@ -96,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'estimated_cost' => $estimated !== '' ? $estimated : null,
                     'actual_cost'    => $actual !== '' ? $actual : null,
                     'id'             => $itemId,
-                    'user_id'        => current_user_id(),
+                    'trip_id'        => $item['trip_id'],
                 ]);
 
                 header('Location: /customer/trips/view.php?id=' . $item['trip_id']);

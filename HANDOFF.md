@@ -1,3 +1,5 @@
+> **Historical notes (Milestones 1-2 only).** The status, "next milestone" and "do not do yet" sections below are outdated: the source now includes trips, itineraries, budgets, email verification, account linking, support escalations, admin tools, and trip collaboration. Treat the source as authoritative. The local-environment notes are still useful.
+
 # TravelEase — Handoff Notes
 
 Read this first if you're picking this project up in a new conversation.
