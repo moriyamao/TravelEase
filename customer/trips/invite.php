@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
 
+const TRIP_INVITE_LOOKUPS_PER_HOUR = 20;
+
 require_role(['customer']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -30,10 +32,25 @@ if (!$stmt->fetch()) {
     die('Trip not found.');
 }
 
+// Persistent per-account lookup limit: every attempt counts, including
+// unknown addresses, across all of this user's trips.
+$stmt = $pdo->prepare('DELETE FROM trip_invite_attempts WHERE created_at < UTC_TIMESTAMP() - INTERVAL 1 DAY');
+$stmt->execute();
+$stmt = $pdo->prepare('SELECT COUNT(*) FROM trip_invite_attempts WHERE user_id = :user_id AND created_at > UTC_TIMESTAMP() - INTERVAL 1 HOUR');
+$stmt->execute(['user_id' => current_user_id()]);
+if ((int) $stmt->fetchColumn() >= TRIP_INVITE_LOOKUPS_PER_HOUR) {
+    http_response_code(429);
+    header('Retry-After: 3600');
+    die('Invitation limit reached. Please try again later.');
+}
+$stmt = $pdo->prepare('INSERT INTO trip_invite_attempts (user_id, created_at) VALUES (:user_id, UTC_TIMESTAMP())');
+$stmt->execute(['user_id' => current_user_id()]);
+
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM trip_invitations WHERE trip_id = :trip_id AND created_at > UTC_TIMESTAMP() - INTERVAL 1 HOUR');
 $stmt->execute(['trip_id' => $tripId]);
 if ((int) $stmt->fetchColumn() >= 10) {
     http_response_code(429);
+    header('Retry-After: 3600');
     die('Invitation limit reached. Please try again later.');
 }
 

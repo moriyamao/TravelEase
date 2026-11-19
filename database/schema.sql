@@ -120,6 +120,14 @@ CREATE TABLE IF NOT EXISTS trip_invitations (
     CONSTRAINT fk_trip_invitations_recipient FOREIGN KEY (invitee_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS trip_invite_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_trip_invite_attempts_user_time (user_id, created_at),
+    CONSTRAINT fk_trip_invite_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS itinerary_items (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     trip_id         INT UNSIGNED        NOT NULL,
