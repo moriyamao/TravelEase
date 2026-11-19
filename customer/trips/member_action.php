@@ -63,6 +63,12 @@ try {
         }
         $stmt = $pdo->prepare('DELETE FROM trip_memberships WHERE trip_id = :trip_id AND user_id = :user_id AND role <> \'owner\'');
         $stmt->execute(['trip_id' => $tripId, 'user_id' => $me]);
+        if ($stmt->rowCount() !== 1) {
+            // Removed by the owner while this request waited for the lock.
+            $pdo->rollBack();
+            http_response_code(404);
+            die('Trip not found.');
+        }
         $pdo->commit();
         $_SESSION['dashboard_notice'] = 'You left the trip. Its plan and other members were not changed.';
         header('Location: /customer/dashboard.php');
@@ -94,6 +100,22 @@ try {
 
     // change_role, remove and transfer target an existing non-owner member.
     $memberId = filter_input(INPUT_POST, 'member_id', FILTER_VALIDATE_INT);
+
+    // Transfer: only a current Customer can own a trip (the management
+    // routes are customer-only). Lock the target's account row BEFORE their
+    // membership row -- the same order an account deletion uses (user row,
+    // then its memberships via the cascade) -- so the two cannot deadlock.
+    if ($action === 'transfer') {
+        $stmt = $pdo->prepare('SELECT role FROM users WHERE id = :id FOR UPDATE');
+        $stmt->execute(['id' => (int) $memberId]);
+        if ($stmt->fetchColumn() !== 'customer') {
+            $pdo->rollBack();
+            member_notice('Ownership can only be transferred to a customer account.', true);
+            header('Location: ' . $back);
+            exit;
+        }
+    }
+
     $stmt = $pdo->prepare(
         'SELECT role FROM trip_memberships WHERE trip_id = :trip_id AND user_id = :user_id AND role <> \'owner\' FOR UPDATE'
     );
@@ -128,17 +150,7 @@ try {
         $stmt->execute(['trip_id' => $tripId, 'user_id' => $memberId]);
         $pdo->commit();
         member_notice('Member removed. Their access ended immediately.');
-    } else { // transfer
-        // Only a current Customer can own a trip: the management routes are
-        // customer-only, so a member promoted to staff/admin is not eligible.
-        $stmt = $pdo->prepare('SELECT role FROM users WHERE id = :id FOR UPDATE');
-        $stmt->execute(['id' => $memberId]);
-        if ($stmt->fetchColumn() !== 'customer') {
-            $pdo->rollBack();
-            member_notice('Ownership can only be transferred to a customer account.', true);
-            header('Location: ' . $back);
-            exit;
-        }
+    } else { // transfer (target eligibility checked above, under lock)
         // New owner: trips.user_id + their row becomes 'owner'.
         // Old owner stays on the trip as an editor. Exactly one owner remains.
         $stmt = $pdo->prepare('UPDATE trips SET user_id = :new_owner WHERE id = :id');
