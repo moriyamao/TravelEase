@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/../includes/timing.php';
 
 function get_db_connection(): PDO
 {
@@ -23,12 +24,25 @@ function get_db_connection(): PDO
 
     $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false, // use real prepared statements
+    ];
+    // Opt-in diagnostics (APP_TIMING=1): time connect, setup and every query.
+    $timing = request_timing_enabled();
+    if ($timing) {
+        $options[PDO::ATTR_STATEMENT_CLASS] = [TimedPDOStatement::class];
+        RequestTiming::register();
+    }
+
     try {
-        $pdo = new PDO($dsn, $user, $pass, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false, // use real prepared statements
-        ]);
+        $connectStart = microtime(true);
+        $pdo = $timing ? new TimedPDO($dsn, $user, $pass, $options) : new PDO($dsn, $user, $pass, $options);
+        $setupStart = microtime(true);
+        if ($timing) {
+            RequestTiming::$connect = $setupStart - $connectStart;
+        }
 
         // Store and compare all timestamps in UTC regardless of the DB
         // server's configured timezone. Local-time display, if ever
@@ -44,6 +58,13 @@ function get_db_connection(): PDO
         // double-quoted string literals (e.g. status = "open") parse
         // correctly again, matching local MariaDB/XAMPP behavior.
         $pdo->exec("SET sql_mode = REPLACE(REPLACE(@@sql_mode, 'ANSI_QUOTES', ''), 'ANSI,', '')");
+
+        if ($timing) {
+            // Report the two setup statements separately from page queries.
+            RequestTiming::$setup = microtime(true) - $setupStart;
+            RequestTiming::$counts['other'] = 0;
+            RequestTiming::$times['other'] = 0.0;
+        }
     } catch (PDOException $e) {
         // Never leak DB connection details to the browser (§39 — Error Handling).
         error_log('TravelEase DB connection failed: ' . $e->getMessage());
