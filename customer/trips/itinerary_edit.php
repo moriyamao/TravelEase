@@ -70,7 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
-                // Scoped to the trip that was authorized above.
+                // Re-check the role under the trip lock, then write.
+                $pdo->beginTransaction();
+                lock_trip_and_require_permission($pdo, (int) $item['trip_id'], 'edit_itinerary');
                 $stmt = $pdo->prepare(
                     'UPDATE itinerary_items
                      SET item_date = :item_date, item_time = :item_time,
@@ -89,11 +91,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'id'             => $itemId,
                     'trip_id'        => $item['trip_id'],
                 ]);
+                $pdo->commit();
 
                 header('Location: /customer/trips/view.php?id=' . $item['trip_id']);
                 exit;
 
             } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 error_log('TravelEase: itinerary item update failed: ' . $e->getMessage());
                 $errors[] = 'Something went wrong while saving. Please try again.';
             }

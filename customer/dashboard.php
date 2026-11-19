@@ -30,7 +30,7 @@ $stmt->execute(['user_id' => current_user_id(), 'owner' => 'owner']);
 $sharedTrips = $stmt->fetchAll();
 
 $stmt = $pdo->prepare(
-    'SELECT i.id, i.role, t.name, t.destination
+    'SELECT i.id, i.issue_no, i.role, t.name, t.destination
      FROM trip_invitations i JOIN trips t ON t.id = i.trip_id
      WHERE i.invitee_id = :user_id AND i.status = :status AND i.expires_at > UTC_TIMESTAMP()
      ORDER BY i.created_at DESC'
@@ -49,6 +49,9 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute(['user_id' => current_user_id()]);
 $unreadReplies = $stmt->fetchAll();
+
+$dashboardNotice = $_SESSION['dashboard_notice'] ?? null;
+unset($_SESSION['dashboard_notice']);
 
 $name = htmlspecialchars($_SESSION['user_name'] ?? 'Traveler', ENT_QUOTES, 'UTF-8');
 
@@ -99,6 +102,10 @@ $daysUntilNextTrip = $nextTrip
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
             </div>
         </header>
+
+        <?php if ($dashboardNotice): ?>
+            <p class="success-message" role="status"><?= htmlspecialchars($dashboardNotice, ENT_QUOTES, 'UTF-8') ?></p>
+        <?php endif; ?>
 
         <?php foreach ($unreadReplies as $reply): ?>
             <div class="support-reply-alert">
@@ -261,6 +268,7 @@ $daysUntilNextTrip = $nextTrip
                     <form method="post" action="/customer/trips/respond_invitation.php">
                         <?= csrf_field() ?>
                         <input type="hidden" name="invitation_id" value="<?= (int) $invitation['id'] ?>">
+                        <input type="hidden" name="issue_no" value="<?= (int) $invitation['issue_no'] ?>">
                         <button name="decision" value="accept">Accept</button>
                         <button name="decision" value="decline">Decline</button>
                     </form>

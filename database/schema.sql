@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS trip_invitations (
     invitee_id INT UNSIGNED NOT NULL,
     role ENUM('editor', 'commenter', 'viewer') NOT NULL,
     status ENUM('pending', 'accepted', 'declined', 'expired', 'revoked') NOT NULL DEFAULT 'pending',
+    issue_no INT UNSIGNED NOT NULL DEFAULT 1,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     responded_at TIMESTAMP NULL,
@@ -118,6 +119,15 @@ CREATE TABLE IF NOT EXISTS trip_invitations (
     INDEX idx_trip_invitations_recipient (invitee_id, status),
     CONSTRAINT fk_trip_invitations_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
     CONSTRAINT fk_trip_invitations_recipient FOREIGN KEY (invitee_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS trip_invite_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_trip_invite_attempts_user_time (user_id, created_at),
+    INDEX idx_trip_invite_attempts_time (created_at),
+    CONSTRAINT fk_trip_invite_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS itinerary_items (

@@ -12,7 +12,7 @@ This is a Mapúa University academic team project. The repository has progressed
 | --- | --- |
 | Accounts | Email/password registration and login, email verification, Google Sign-In with explicit account linking, logout, role-based routing |
 | Trip planning | Create, view, edit, and delete customer-owned trips with destination, dates, status, and notes |
-| Collaboration | Owners invite verified customers by exact email as Editor, Commenter, or Viewer; invitees accept or decline from their dashboard. Editors change the itinerary; Commenters and Viewers are read-only (comments are not built yet). Only the owner edits trip details, invites, or deletes the trip |
+| Collaboration | Owners invite verified customers by exact email as Editor, Commenter, or Viewer; invitees accept or decline from their dashboard. Editors change the itinerary; Commenters and Viewers are read-only (comments are not built yet). Only the owner edits trip details, invites, or deletes the trip. Owners can change member roles, remove members, revoke pending invitations, and transfer ownership (the previous owner stays as an editor; a trip always has exactly one owner). Members can leave a trip without affecting its plan or other members. Invitation email lookups are limited to 20 per hour per account |
 | Itineraries | Add, edit, and remove dated activities with optional time, location, notes, and costs |
 | Budgeting | Trip currency and budget, estimated/actual itinerary costs, totals, and remaining/over-budget display |
 | Profiles | Profile editing and validated profile-picture uploads |
@@ -123,7 +123,7 @@ Useful smoke checks for a new environment include login/logout, denied customer 
 - Protect configuration, environment files, SQL files, and internal documents from direct HTTP access when serving the repository root. Do not treat the development server or the current container configuration as a complete production hardening baseline.
 - Uploaded profile pictures use local storage. Render's ephemeral filesystem can discard them on restart/redeploy; durable storage requires a persistent disk or external object storage.
 - Login and chat rate limits are per-session, not shared limits across sessions or hosts.
-- Password reset is not implemented. Collaboration lacks member removal, role changes, ownership transfer, leaving a trip, invitation email, and comments.
+- Password reset is not implemented. Collaboration does not yet send invitation emails or support comments.
 - The deployment report describes a database TLS configuration, but the current `config/database.php` does not explicitly configure PDO TLS options. Verify the actual connection configuration before relying on encrypted database transport.
 - AI answers can be inaccurate, and human follow-up depends on staff availability. Do not submit payment credentials or other sensitive information to the chat.
 

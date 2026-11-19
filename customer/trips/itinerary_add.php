@@ -68,6 +68,10 @@ if (!empty($errors)) {
 }
 
 try {
+    $pdo->beginTransaction();
+    // Re-check the role under the trip lock so a removal or demotion
+    // that commits after the check above cannot be bypassed.
+    lock_trip_and_require_permission($pdo, $tripId, 'edit_itinerary');
     $stmt = $pdo->prepare(
         'INSERT INTO itinerary_items (trip_id, item_date, item_time, title, location, notes, estimated_cost, actual_cost)
          VALUES (:trip_id, :item_date, :item_time, :title, :location, :notes, :estimated_cost, :actual_cost)'
@@ -82,11 +86,15 @@ try {
         'estimated_cost' => $estimated !== '' ? $estimated : null,
         'actual_cost'    => $actual !== '' ? $actual : null,
     ]);
+    $pdo->commit();
 
     header('Location: /customer/trips/view.php?id=' . $tripId);
     exit;
 
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('TravelEase: itinerary item creation failed: ' . $e->getMessage());
     $_SESSION['itinerary_errors'] = ['Something went wrong while saving. Please try again.'];
     header('Location: /customer/trips/view.php?id=' . $tripId);

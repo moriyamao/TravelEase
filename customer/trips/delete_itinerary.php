@@ -39,14 +39,20 @@ if (!$row) {
 require_trip_permission($pdo, (int) $row['trip_id'], 'edit_itinerary');
 
 try {
-    // Scoped to the trip that was authorized above.
+    // Re-check the role under the trip lock, then delete.
+    $pdo->beginTransaction();
+    lock_trip_and_require_permission($pdo, (int) $row['trip_id'], 'edit_itinerary');
     $stmt = $pdo->prepare('DELETE FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
     $stmt->execute(['id' => $itemId, 'trip_id' => $row['trip_id']]);
+    $pdo->commit();
 
     header('Location: /customer/trips/view.php?id=' . $row['trip_id']);
     exit;
 
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('TravelEase: itinerary item deletion failed: ' . $e->getMessage());
     http_response_code(500);
     die('Something went wrong while deleting. Please try again.');
