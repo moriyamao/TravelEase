@@ -79,9 +79,11 @@ try {
 
     // 3. Brand new user via Google. Role is always 'customer' --
     //    never settable by the client, Google or otherwise (§20).
+    //    Google already verified this email (checked above), so the
+    //    account counts as verified, e.g. for trip invitations.
     $stmt = $pdo->prepare(
-        'INSERT INTO users (name, email, password_hash, google_subject, role)
-         VALUES (:name, :email, NULL, :sub, :role)'
+        'INSERT INTO users (name, email, email_verified_at, password_hash, google_subject, role)
+         VALUES (:name, :email, UTC_TIMESTAMP(), NULL, :sub, :role)'
     );
     $stmt->execute([
         'name'  => $name,
