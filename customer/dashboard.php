@@ -50,6 +50,9 @@ $stmt = $pdo->prepare(
 $stmt->execute(['user_id' => current_user_id()]);
 $unreadReplies = $stmt->fetchAll();
 
+$dashboardNotice = $_SESSION['dashboard_notice'] ?? null;
+unset($_SESSION['dashboard_notice']);
+
 $name = htmlspecialchars($_SESSION['user_name'] ?? 'Traveler', ENT_QUOTES, 'UTF-8');
 
 $statusLabels = [
@@ -99,6 +102,10 @@ $daysUntilNextTrip = $nextTrip
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
             </div>
         </header>
+
+        <?php if ($dashboardNotice): ?>
+            <p class="success-message" role="status"><?= htmlspecialchars($dashboardNotice, ENT_QUOTES, 'UTF-8') ?></p>
+        <?php endif; ?>
 
         <?php foreach ($unreadReplies as $reply): ?>
             <div class="support-reply-alert">
