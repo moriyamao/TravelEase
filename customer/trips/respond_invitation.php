@@ -14,20 +14,39 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
     die('Your session expired. Please try again.');
 }
 $invitationId = filter_input(INPUT_POST, 'invitation_id', FILTER_VALIDATE_INT);
+$issueNo = filter_input(INPUT_POST, 'issue_no', FILTER_VALIDATE_INT);
 $decision = (string) ($_POST['decision'] ?? '');
-if (!$invitationId || !in_array($decision, ['accept', 'decline'], true)) {
+if (!$invitationId || !$issueNo || !in_array($decision, ['accept', 'decline'], true)) {
     http_response_code(400);
     die('Invalid invitation response.');
 }
 
 $pdo = get_db_connection();
 try {
+    // Find the trip without locking, then lock in the same order as every
+    // other collaboration write (trip row first, then the invitation), so
+    // a simultaneous revoke or member change cannot deadlock with this.
+    $stmt = $pdo->prepare('SELECT trip_id FROM trip_invitations WHERE id = :id AND invitee_id = :user_id');
+    $stmt->execute(['id' => $invitationId, 'user_id' => current_user_id()]);
+    $tripId = $stmt->fetchColumn();
+    if ($tripId === false) {
+        http_response_code(404);
+        die('Invitation is no longer available.');
+    }
+
     $pdo->beginTransaction();
+    $stmt = $pdo->prepare('SELECT id FROM trips WHERE id = :id FOR UPDATE');
+    $stmt->execute(['id' => $tripId]);
+
+    // issue_no must match the invitation the form was rendered for: a
+    // reopened invitation gets a new issue_no, so an old page cannot
+    // accept a newer invitation with a different role.
     $stmt = $pdo->prepare(
         'SELECT trip_id, role, status, expires_at > UTC_TIMESTAMP() AS is_active
-         FROM trip_invitations WHERE id = :id AND invitee_id = :user_id FOR UPDATE'
+         FROM trip_invitations
+         WHERE id = :id AND invitee_id = :user_id AND issue_no = :issue_no FOR UPDATE'
     );
-    $stmt->execute(['id' => $invitationId, 'user_id' => current_user_id()]);
+    $stmt->execute(['id' => $invitationId, 'user_id' => current_user_id(), 'issue_no' => $issueNo]);
     $invitation = $stmt->fetch();
     if ($invitation && $invitation['status'] === 'pending' && !(int) $invitation['is_active']) {
         // Record the Expired state instead of leaving a dead 'pending' row.

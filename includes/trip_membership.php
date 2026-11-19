@@ -64,3 +64,40 @@ function require_trip_permission(PDO $pdo, int $tripId, string $permission): str
     }
     return $role;
 }
+
+/**
+ * Write-time permission check. Call inside a transaction, right before
+ * the write. Locks the trip row FOR UPDATE -- the lock every member,
+ * ownership and invitation change takes first -- then re-reads the
+ * user's role with a locking read, so a role change, removal or
+ * ownership transfer that commits after the page loaded cannot slip in
+ * between this check and the write. Rolls back and stops on failure.
+ */
+function lock_trip_and_require_permission(PDO $pdo, int $tripId, string $permission): string
+{
+    $userId = (int) current_user_id();
+    $stmt = $pdo->prepare('SELECT user_id FROM trips WHERE id = :id FOR UPDATE');
+    $stmt->execute(['id' => $tripId]);
+    $ownerId = $stmt->fetchColumn();
+
+    $role = null;
+    if ($ownerId !== false) {
+        if ((int) $ownerId === $userId) {
+            $role = 'owner';
+        } else {
+            $stmt = $pdo->prepare(
+                'SELECT role FROM trip_memberships WHERE trip_id = :trip_id AND user_id = :user_id LOCK IN SHARE MODE'
+            );
+            $stmt->execute(['trip_id' => $tripId, 'user_id' => $userId]);
+            $memberRole = $stmt->fetchColumn();
+            $role = in_array($memberRole, ['editor', 'commenter', 'viewer'], true) ? $memberRole : null;
+        }
+    }
+
+    if (!trip_role_can($role, $permission)) {
+        $pdo->rollBack();
+        http_response_code($role === null ? 404 : 403);
+        die($role === null ? 'Trip not found.' : 'Your role on this trip does not allow this action.');
+    }
+    return $role;
+}

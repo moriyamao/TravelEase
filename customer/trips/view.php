@@ -87,11 +87,11 @@ foreach ($items as $item) {
 // Members are visible to every member so each knows who can see or
 // change the trip. The owner comes from trips.user_id (canonical).
 $stmt = $pdo->prepare(
-    'SELECT u.id, u.name, \'owner\' AS role
+    'SELECT u.id, u.name, \'owner\' AS role, u.role AS system_role
      FROM trips t JOIN users u ON u.id = t.user_id
      WHERE t.id = :owner_trip_id
      UNION ALL
-     SELECT u.id, u.name, m.role
+     SELECT u.id, u.name, m.role, u.role AS system_role
      FROM trip_memberships m
      JOIN trips t ON t.id = m.trip_id
      JOIN users u ON u.id = m.user_id
@@ -103,7 +103,7 @@ $members = $stmt->fetchAll();
 $pendingInvites = [];
 if ($canManageTrip) {
     $stmt = $pdo->prepare(
-        'SELECT i.id, u.email, i.role, i.expires_at
+        'SELECT i.id, i.issue_no, u.email, i.role, i.expires_at
          FROM trip_invitations i JOIN users u ON u.id = i.invitee_id
          WHERE i.trip_id = :trip_id AND i.status = \'pending\' AND i.expires_at > UTC_TIMESTAMP()
          ORDER BY i.created_at DESC'
@@ -342,6 +342,7 @@ $statusLabels = [
                                         <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
                                         <input type="hidden" name="action" value="revoke_invite">
                                         <input type="hidden" name="invitation_id" value="<?= (int) $invite['id'] ?>">
+                                        <input type="hidden" name="issue_no" value="<?= (int) $invite['issue_no'] ?>">
                                         <button type="submit" class="link-danger">Revoke</button>
                                     </form>
                                 </li>
@@ -378,6 +379,7 @@ $statusLabels = [
                                     <input type="hidden" name="action" value="remove">
                                     <button type="submit" class="link-danger">Remove</button>
                                 </form>
+                                <?php if ($member['system_role'] === 'customer'): ?>
                                 <form method="post" action="/customer/trips/member_action.php" class="trip-member-form"
                                       onsubmit="return confirm('Make this member the owner? You will become an editor.');">
                                     <?= csrf_field() ?>
@@ -386,6 +388,7 @@ $statusLabels = [
                                     <input type="hidden" name="action" value="transfer">
                                     <button type="submit">Make owner</button>
                                 </form>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </li>
                     <?php endforeach; ?>

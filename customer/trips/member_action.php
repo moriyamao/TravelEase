@@ -78,13 +78,16 @@ try {
 
     if ($action === 'revoke_invite') {
         $invitationId = filter_input(INPUT_POST, 'invitation_id', FILTER_VALIDATE_INT);
+        $issueNo = filter_input(INPUT_POST, 'issue_no', FILTER_VALIDATE_INT);
+        // issue_no must match the invitation shown on the owner's page, so an
+        // old page cannot revoke a newer, reissued invitation.
         $stmt = $pdo->prepare(
             'UPDATE trip_invitations SET status = \'revoked\', responded_at = UTC_TIMESTAMP()
-             WHERE id = :id AND trip_id = :trip_id AND status = \'pending\''
+             WHERE id = :id AND trip_id = :trip_id AND issue_no = :issue_no AND status = \'pending\''
         );
-        $stmt->execute(['id' => (int) $invitationId, 'trip_id' => $tripId]);
+        $stmt->execute(['id' => (int) $invitationId, 'trip_id' => $tripId, 'issue_no' => (int) $issueNo]);
         $pdo->commit();
-        member_notice($stmt->rowCount() === 1 ? 'Invitation revoked.' : 'That invitation is no longer pending.', $stmt->rowCount() !== 1);
+        member_notice($stmt->rowCount() === 1 ? 'Invitation revoked.' : 'That invitation changed or is no longer pending. Reload the page and try again.', $stmt->rowCount() !== 1);
         header('Location: ' . $back);
         exit;
     }
@@ -126,6 +129,16 @@ try {
         $pdo->commit();
         member_notice('Member removed. Their access ended immediately.');
     } else { // transfer
+        // Only a current Customer can own a trip: the management routes are
+        // customer-only, so a member promoted to staff/admin is not eligible.
+        $stmt = $pdo->prepare('SELECT role FROM users WHERE id = :id FOR UPDATE');
+        $stmt->execute(['id' => $memberId]);
+        if ($stmt->fetchColumn() !== 'customer') {
+            $pdo->rollBack();
+            member_notice('Ownership can only be transferred to a customer account.', true);
+            header('Location: ' . $back);
+            exit;
+        }
         // New owner: trips.user_id + their row becomes 'owner'.
         // Old owner stays on the trip as an editor. Exactly one owner remains.
         $stmt = $pdo->prepare('UPDATE trips SET user_id = :new_owner WHERE id = :id');
