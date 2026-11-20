@@ -79,3 +79,22 @@ function require_role(array $allowedRoles): void
         die('You do not have permission to access this page.');
     }
 }
+
+/**
+ * Dashboard URL for a role. Shared by redirect_dashboard.php and the
+ * password sign-in, which already has the role fresh from the database
+ * and can skip the extra redirect request. Each dashboard still runs
+ * require_role(), so access is re-checked on arrival.
+ */
+function dashboard_path_for_role(?string $role): string
+{
+    switch ($role) {
+        case 'admin':
+            return '/admin/dashboard.php';
+        case 'staff':
+            return '/staff/dashboard.php';
+        case 'customer':
+        default:
+            return '/customer/dashboard.php';
+    }
+}
