@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
 require_once __DIR__ . '/../../includes/trip_recommendations.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 
@@ -138,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'user_id' => current_user_id(),
                         'role' => 'owner',
                     ]);
+                    log_trip_activity($pdo, $tripId, 'trip_created');
                     if ($selected) {
                         $stmt = $pdo->prepare(
                             'INSERT INTO itinerary_items (trip_id, item_date, title, location, notes)

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -69,6 +70,7 @@ try {
             http_response_code(404);
             die('Trip not found.');
         }
+        log_trip_activity($pdo, $tripId, 'member_left');
         $pdo->commit();
         $_SESSION['dashboard_notice'] = 'You left the trip. Its plan and other members were not changed.';
         header('Location: /customer/dashboard.php');
@@ -92,6 +94,9 @@ try {
              WHERE id = :id AND trip_id = :trip_id AND issue_no = :issue_no AND status = \'pending\''
         );
         $stmt->execute(['id' => (int) $invitationId, 'trip_id' => $tripId, 'issue_no' => (int) $issueNo]);
+        if ($stmt->rowCount() === 1) {
+            log_trip_activity($pdo, $tripId, 'invitation_revoked');
+        }
         $pdo->commit();
         member_notice($stmt->rowCount() === 1 ? 'Invitation revoked.' : 'That invitation changed or is no longer pending. Reload the page and try again.', $stmt->rowCount() !== 1);
         header('Location: ' . $back);
@@ -137,6 +142,10 @@ try {
         }
         $stmt = $pdo->prepare('UPDATE trip_memberships SET role = :role WHERE trip_id = :trip_id AND user_id = :user_id');
         $stmt->execute(['role' => $role, 'trip_id' => $tripId, 'user_id' => $memberId]);
+        if ($role !== $memberRole) {
+            log_trip_activity($pdo, $tripId, 'member_role_changed', (int) $memberId,
+                (TRIP_ROLE_LABELS[$memberRole] ?? $memberRole) . ' to ' . TRIP_ROLE_LABELS[$role]);
+        }
         $pdo->commit();
         member_notice('Member role updated.');
     } elseif ($action === 'remove') {
@@ -148,6 +157,7 @@ try {
              WHERE trip_id = :trip_id AND invitee_id = :user_id'
         );
         $stmt->execute(['trip_id' => $tripId, 'user_id' => $memberId]);
+        log_trip_activity($pdo, $tripId, 'member_removed', (int) $memberId);
         $pdo->commit();
         member_notice('Member removed. Their access ended immediately.');
     } else { // transfer (target eligibility checked above, under lock)
@@ -162,6 +172,7 @@ try {
              ON DUPLICATE KEY UPDATE role = \'editor\''
         );
         $stmt->execute(['trip_id' => $tripId, 'user_id' => $me]);
+        log_trip_activity($pdo, $tripId, 'ownership_transferred', (int) $memberId);
         $pdo->commit();
         member_notice('Ownership transferred. You are now an editor on this trip.');
     }

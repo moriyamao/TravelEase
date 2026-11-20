@@ -207,6 +207,7 @@ $statusLabels = [
         <header class="dashboard-header">
             <h1>My Trips</h1>
             <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
+            <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
         </header>
 
         <section class="trip-hero">

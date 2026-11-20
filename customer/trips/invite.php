@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 const TRIP_INVITE_LOOKUPS_PER_HOUR = 20;
 
@@ -121,6 +122,7 @@ try {
         'trip_id' => $tripId, 'invitee_id' => $inviteeId,
         'role' => $role, 'reopen_role' => $role,
     ]);
+    log_trip_activity($pdo, $tripId, 'member_invited', null, TRIP_ROLE_LABELS[$role]);
     invite_redirect($pdo, 'trip_invite_notice', 'Invitation created. The recipient will see it on their dashboard.', $back);
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {

@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_validation.php';
+require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 
@@ -72,6 +74,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
+                // FR-18: lock the trip (the same lock member changes take)
+                // and re-check ownership, so the update and its history
+                // entry commit together.
+                $pdo->beginTransaction();
+                lock_trip_and_require_permission($pdo, $tripId, 'manage_trip');
+                // Compare against the row as it is now (under the lock),
+                // not as it was when the form loaded.
+                $current = load_owned_trip($pdo, $tripId, current_user_id());
+                if (!$current) {
+                    $pdo->rollBack();
+                    http_response_code(404);
+                    die('Trip not found.');
+                }
+
                 // UPDATE also scoped by user_id -- belt-and-suspenders
                 // with the load above. Even if something upstream were
                 // ever refactored carelessly, this query alone still
@@ -97,10 +113,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'user_id'         => current_user_id(),
                 ]);
 
+                // Changed fields for the history entry. Line breaks are
+                // compared without CR, since browsers submit CRLF.
+                $lf = fn($text) => str_replace("\r\n", "\n", (string) $text);
+                $changed = [];
+                $comparisons = [
+                    [$current['name'], $name, 'name'],
+                    [$current['destination'], $destination, 'destination'],
+                    [$current['start_date'] . '/' . $current['end_date'], $startDate . '/' . $endDate, 'dates'],
+                    [$current['status'], $status, 'status'],
+                    [$current['budget_currency'], $currency, 'currency'],
+                    [$lf($current['notes'] ?? ''), $lf($notes), 'notes'],
+                ];
+                foreach ($comparisons as [$old, $new, $label]) {
+                    if ((string) $old !== (string) $new) {
+                        $changed[] = $label;
+                    }
+                }
+                $oldBudget = $current['budget_amount'] === null ? null : (float) $current['budget_amount'];
+                $newBudget = $budget === '' ? null : (float) $budget;
+                if ($oldBudget !== $newBudget) {
+                    $changed[] = 'budget';
+                }
+                if ($changed) {
+                    log_trip_activity($pdo, $tripId, 'trip_updated', null, implode(', ', $changed));
+                }
+                $pdo->commit();
+
                 header('Location: /customer/trips/view.php?id=' . $tripId);
                 exit;
 
             } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 error_log('TravelEase: trip update failed: ' . $e->getMessage());
                 $errors[] = 'Something went wrong while saving your changes. Please try again.';
             }

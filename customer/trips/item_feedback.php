@@ -19,6 +19,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 
@@ -94,9 +95,10 @@ try {
 
     // The activity must belong to this trip. Item deletes take the same
     // trip lock, so the item cannot disappear between here and the write.
-    $stmt = $pdo->prepare('SELECT id FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
+    $stmt = $pdo->prepare('SELECT title FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
     $stmt->execute(['id' => $itemId, 'trip_id' => $tripId]);
-    if ($stmt->fetchColumn() === false) {
+    $itemTitle = $stmt->fetchColumn();
+    if ($itemTitle === false) {
         $pdo->rollBack();
         http_response_code(404);
         die('Item not found.');
@@ -119,6 +121,7 @@ try {
             'INSERT INTO itinerary_item_comments (itinerary_item_id, user_id, body) VALUES (:item_id, :user_id, :body)'
         );
         $stmt->execute(['item_id' => $itemId, 'user_id' => $me, 'body' => $body]);
+        log_trip_activity($pdo, $tripId, 'comment_added', null, (string) $itemTitle);
     }
     $pdo->commit();
 
