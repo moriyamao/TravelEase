@@ -65,7 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                $_SESSION['user_name']  = $user['name'];
                $_SESSION['user_email'] = $user['email'];
 
-                header('Location: /includes/redirect_dashboard.php');
+                // Go straight to the role's dashboard (role was just read
+                // from the database above); that page re-checks access.
+                header('Location: ' . dashboard_path_for_role($user['role']));
                 exit;
             }
         }
