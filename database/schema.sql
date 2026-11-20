@@ -130,6 +130,30 @@ CREATE TABLE IF NOT EXISTS trip_invite_attempts (
     CONSTRAINT fk_trip_invite_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS trip_places (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trip_id INT UNSIGNED NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    address VARCHAR(255) NULL,
+    latitude DECIMAL(9,6) NULL,
+    longitude DECIMAL(9,6) NULL,
+    category ENUM('sightseeing','food','transport','lodging','activity','shopping','other') NULL,
+    source ENUM('manual','geoapify') NOT NULL DEFAULT 'manual',
+    provider_place_id VARCHAR(2048) NULL,
+    created_by INT UNSIGNED NULL,
+    version INT UNSIGNED NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_trip_places_trip_name (trip_id, name),
+    CONSTRAINT fk_trip_places_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_trip_places_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_trip_places_coordinates CHECK (
+        (latitude IS NULL AND longitude IS NULL) OR
+        (latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)
+    ),
+    CONSTRAINT chk_trip_places_version CHECK (version > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS itinerary_items (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     trip_id         INT UNSIGNED        NOT NULL,
@@ -138,6 +162,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
     end_time        TIME                NULL,
     title           VARCHAR(150)        NOT NULL,
     location        VARCHAR(150)        NULL,
+    place_id        INT UNSIGNED        NULL,
     category        ENUM('sightseeing', 'food', 'transport', 'lodging', 'activity', 'shopping', 'other') NULL,
     assignee_id     INT UNSIGNED        NULL,
     sort_order      INT UNSIGNED        NOT NULL DEFAULT 0,
@@ -154,6 +179,9 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
         FOREIGN KEY (trip_id) REFERENCES trips(id)
         ON DELETE CASCADE,
 
+    CONSTRAINT fk_itinerary_place
+        FOREIGN KEY (place_id) REFERENCES trip_places(id) ON DELETE SET NULL,
+
     CONSTRAINT fk_itinerary_assignee
         FOREIGN KEY (assignee_id) REFERENCES users(id)
         ON DELETE SET NULL,
@@ -161,6 +189,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
         FOREIGN KEY (completed_by) REFERENCES users(id)
         ON DELETE SET NULL,
 
+    INDEX idx_itinerary_place (place_id),
     INDEX idx_itinerary_trip_id (trip_id),
     INDEX idx_itinerary_trip_date (trip_id, item_date),
     INDEX idx_itinerary_trip_date_order (trip_id, item_date, sort_order)
@@ -226,4 +255,22 @@ CREATE TABLE IF NOT EXISTS trip_activity_log (
         FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_trip_activity_log_target
         FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Account-wide lookup quota (including cache hits), independent of sessions.
+CREATE TABLE IF NOT EXISTS place_lookup_limits (
+    user_id INT UNSIGNED PRIMARY KEY,
+    window_started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    CONSTRAINT fk_place_lookup_limits_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Public provider results only. The reserved 'provider' key stores the next
+-- allowed provider-request time; all other keys are SHA-256 query hashes.
+CREATE TABLE IF NOT EXISTS place_lookup_cache (
+    cache_key VARCHAR(64) PRIMARY KEY,
+    payload MEDIUMTEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    INDEX idx_place_lookup_cache_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

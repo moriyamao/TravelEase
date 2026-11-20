@@ -1,0 +1,26 @@
+/* Trip places & map page (FR-21 / FR-27) */
+.places-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1.2rem; margin: 1rem 0 1.4rem; }
+.places-map-card, .places-search-card, .places-list-card { padding: clamp(1.1rem, 2.5vw, 1.6rem); border: 1px solid var(--line); border-radius: 14px; background: rgba(255,254,251,.62); }
+.places-list-card { margin-top: 1.2rem; }
+.places-map { height: 380px; border: 1px solid var(--line-dark); border-radius: 10px; background: var(--paper-white); }
+.places-map-fallback { display: flex; align-items: center; justify-content: center; height: auto; min-height: 6rem; padding: 1rem; color: var(--ink-muted); }
+.places-note { margin: .5rem 0 0; color: var(--ink-muted); font-size: .8rem; }
+.place-search-row { display: flex; gap: .5rem; }
+.place-search-row input { flex: 1 1 auto; min-width: 0; }
+.place-search-status { margin-top: .6rem; font-size: .85rem; }
+.place-results, .place-list, .day-places { margin: .6rem 0 0; padding: 0; list-style: none; }
+.place-results li, .place-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .7rem; padding: .6rem 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.place-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; width: 100%; }
+.place-address { color: var(--ink-muted); font-size: .85rem; width: 100%; margin: 0; }
+.place-links { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; width: 100%; margin: .2rem 0 0; font-size: .82rem; }
+.place-links a { color: var(--stamp-dark); font-weight: 700; }
+.place-edit { width: 100%; }
+.place-edit summary { color: var(--stamp-dark); font-size: .82rem; font-weight: 700; cursor: pointer; }
+.day-places li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .7rem; padding: .45rem 0; border-bottom: 1px solid var(--line); }
+.day-places .itinerary-time { position: static; width: 3rem; text-align: left; }
+.day-place { color: var(--ink-muted); font-size: .85rem; }
+.link-form { display: inline-flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin: 0; }
+.link-form select { width: auto; margin: 0; }
+.form-notice { padding: .6rem .8rem; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper-white); }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 820px) { .places-layout { grid-template-columns: 1fr; } .places-map { height: 300px; } }

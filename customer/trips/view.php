@@ -74,6 +74,7 @@ $stmt = $pdo->prepare(
     'SELECT i.id, i.item_date, i.item_time, i.end_time, i.title, i.location, i.notes,
             i.estimated_cost, i.actual_cost, i.category, i.assignee_id, i.completed_at,
             au.name AS assignee_name, cu.name AS completed_by_name,
+            tp.name AS place_name, tp.latitude AS place_lat, tp.longitude AS place_lon,
             COALESCE(v.up_votes, 0) AS up_votes,
             COALESCE(v.down_votes, 0) AS down_votes,
             COALESCE(c.comment_count, 0) AS comment_count,
@@ -106,6 +107,7 @@ $stmt = $pdo->prepare(
      LEFT JOIN itinerary_item_votes mv ON mv.itinerary_item_id = i.id AND mv.user_id = :me
      LEFT JOIN users au ON au.id = i.assignee_id
      LEFT JOIN users cu ON cu.id = i.completed_by
+     LEFT JOIN trip_places tp ON tp.id = i.place_id AND tp.trip_id = i.trip_id
      WHERE i.trip_id = :trip_id
      ORDER BY i.item_date ASC, i.sort_order ASC, i.item_time ASC, i.id ASC'
 );
@@ -215,6 +217,7 @@ $statusLabels = [
         <header class="dashboard-header">
             <h1>My Trips</h1>
             <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
+            <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>" class="logout-link">Places &amp; map</a>
             <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
         </header>
 
@@ -311,6 +314,9 @@ $statusLabels = [
                                             <span><?= htmlspecialchars(substr($item['item_time'], 0, 5) . '–' . substr($item['end_time'], 0, 5), ENT_QUOTES, 'UTF-8') ?></span>
                                         <?php endif; ?>
                                         <span class="itinerary-category"><?= htmlspecialchars(ITINERARY_CATEGORIES[$item['category'] ?? ''] ?? 'Uncategorized', ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php if ($item['place_name'] !== null): ?>
+                                            <span>At <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>#activity-<?= (int) $item['id'] ?>"><?= htmlspecialchars($item['place_name'], ENT_QUOTES, 'UTF-8') ?></a><?php if ($item['place_lat'] !== null && $item['place_lon'] !== null): ?> &middot; <a href="https://www.openstreetmap.org/directions?route=%3B<?= rawurlencode($item['place_lat'] . ',' . $item['place_lon']) ?>" target="_blank" rel="noopener noreferrer">Directions</a><?php endif; ?></span>
+                                        <?php endif; ?>
                                         <?php if ($item['assignee_id'] !== null): ?>
                                             <span>Assigned to <?= htmlspecialchars($item['assignee_name'] ?? 'a deleted user', ENT_QUOTES, 'UTF-8') ?><?= in_array((int) $item['assignee_id'], $memberIds, true) ? '' : ' (no longer on this trip)' ?></span>
                                         <?php endif; ?>
