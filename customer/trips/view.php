@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/trip_recommendations.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/itinerary_validation.php';
 
 require_role(['customer']);
 
@@ -70,8 +71,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
 // - edited_after_feedback compares the activity's updated_at with the
 //   EARLIEST vote or comment creation (feedback never touches the item).
 $stmt = $pdo->prepare(
-    'SELECT i.id, i.item_date, i.item_time, i.title, i.location, i.notes,
-            i.estimated_cost, i.actual_cost,
+    'SELECT i.id, i.item_date, i.item_time, i.end_time, i.title, i.location, i.notes,
+            i.estimated_cost, i.actual_cost, i.category, i.assignee_id, i.completed_at,
+            au.name AS assignee_name, cu.name AS completed_by_name,
             COALESCE(v.up_votes, 0) AS up_votes,
             COALESCE(v.down_votes, 0) AS down_votes,
             COALESCE(c.comment_count, 0) AS comment_count,
@@ -102,8 +104,10 @@ $stmt = $pdo->prepare(
          GROUP BY ic.itinerary_item_id
      ) c ON c.itinerary_item_id = i.id
      LEFT JOIN itinerary_item_votes mv ON mv.itinerary_item_id = i.id AND mv.user_id = :me
+     LEFT JOIN users au ON au.id = i.assignee_id
+     LEFT JOIN users cu ON cu.id = i.completed_by
      WHERE i.trip_id = :trip_id
-     ORDER BY i.item_date ASC, i.item_time ASC'
+     ORDER BY i.item_date ASC, i.sort_order ASC, i.item_time ASC, i.id ASC'
 );
 $stmt->execute([
     'vote_trip_id'    => $tripId,
@@ -159,6 +163,10 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute(['owner_trip_id' => $tripId, 'member_trip_id' => $tripId]);
 $members = $stmt->fetchAll();
+// FR-19: current members (for "no longer on this trip" labels) and the
+// people who can be newly assigned (customer accounts only).
+$memberIds = array_map('intval', array_column($members, 'id'));
+$assignableMembers = array_values(array_filter($members, fn($m) => $m['system_role'] === 'customer'));
 
 $pendingInvites = [];
 if ($canManageTrip) {
@@ -287,8 +295,8 @@ $statusLabels = [
                     <div class="itinerary-day">
                         <h3 class="itinerary-day-heading"><?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?></h3>
                         <ul class="itinerary-list">
-                            <?php foreach ($dayItems as $item): ?>
-                                <li class="itinerary-item" id="item-<?= (int) $item['id'] ?>">
+                            <?php foreach ($dayItems as $dayIndex => $item): ?>
+                                <li class="itinerary-item<?= $item['completed_at'] !== null ? ' is-done' : '' ?>" id="item-<?= (int) $item['id'] ?>">
                                     <div class="itinerary-item-main">
                                         <?php if (!empty($item['item_time'])): ?>
                                             <span class="itinerary-time"><?= htmlspecialchars(substr($item['item_time'], 0, 5), ENT_QUOTES, 'UTF-8') ?></span>
@@ -298,6 +306,18 @@ $statusLabels = [
                                             <span class="itinerary-location">— <?= htmlspecialchars($item['location'], ENT_QUOTES, 'UTF-8') ?></span>
                                         <?php endif; ?>
                                     </div>
+                                    <p class="itinerary-meta">
+                                        <?php if (!empty($item['item_time']) && !empty($item['end_time'])): ?>
+                                            <span><?= htmlspecialchars(substr($item['item_time'], 0, 5) . '–' . substr($item['end_time'], 0, 5), ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php endif; ?>
+                                        <span class="itinerary-category"><?= htmlspecialchars(ITINERARY_CATEGORIES[$item['category'] ?? ''] ?? 'Uncategorized', ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php if ($item['assignee_id'] !== null): ?>
+                                            <span>Assigned to <?= htmlspecialchars($item['assignee_name'] ?? 'a deleted user', ENT_QUOTES, 'UTF-8') ?><?= in_array((int) $item['assignee_id'], $memberIds, true) ? '' : ' (no longer on this trip)' ?></span>
+                                        <?php endif; ?>
+                                        <?php if ($item['completed_at'] !== null): ?>
+                                            <span class="itinerary-done">Done<?= $item['completed_by_name'] !== null ? ' · by ' . htmlspecialchars($item['completed_by_name'], ENT_QUOTES, 'UTF-8') : '' ?></span>
+                                        <?php endif; ?>
+                                    </p>
                                     <?php if ($item['estimated_cost'] !== null || $item['actual_cost'] !== null): ?>
                                         <p class="itinerary-cost">
                                             <?php if ($item['estimated_cost'] !== null): ?>
@@ -314,6 +334,28 @@ $statusLabels = [
                                     <?php if ($canEditItinerary): ?>
                                     <div class="itinerary-item-actions">
                                         <a href="/customer/trips/itinerary_edit.php?id=<?= (int) $item['id'] ?>">Edit</a>
+                                        <form method="post" action="/customer/trips/itinerary_action.php">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                            <input type="hidden" name="action" value="<?= $item['completed_at'] === null ? 'complete' : 'reopen' ?>">
+                                            <button type="submit"><?= $item['completed_at'] === null ? 'Mark done' : 'Reopen' ?></button>
+                                        </form>
+                                        <?php if ($dayIndex > 0): ?>
+                                        <form method="post" action="/customer/trips/itinerary_action.php">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                            <input type="hidden" name="action" value="move_up">
+                                            <button type="submit">Move up</button>
+                                        </form>
+                                        <?php endif; ?>
+                                        <?php if ($dayIndex < count($dayItems) - 1): ?>
+                                        <form method="post" action="/customer/trips/itinerary_action.php">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                                            <input type="hidden" name="action" value="move_down">
+                                            <button type="submit">Move down</button>
+                                        </form>
+                                        <?php endif; ?>
                                         <form method="post" action="/customer/trips/delete_itinerary.php"
                                               onsubmit="return confirm('Delete this item?');">
                                             <?= csrf_field() ?>
@@ -404,13 +446,38 @@ $statusLabels = [
                                    max="<?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>">
                         </div>
                         <div>
-                            <label for="item_time">Time (optional)</label>
+                            <label for="item_time">Start time (optional)</label>
                             <input type="time" id="item_time" name="item_time">
+                        </div>
+                        <div>
+                            <label for="end_time">End time (optional)</label>
+                            <input type="time" id="end_time" name="end_time">
                         </div>
                     </div>
 
                     <label for="location">Location (optional)</label>
                     <input type="text" id="location" name="location" maxlength="150">
+
+                    <div class="form-row">
+                        <div>
+                            <label for="category">Category (optional)</label>
+                            <select id="category" name="category">
+                                <option value="">Uncategorized</option>
+                                <?php foreach (ITINERARY_CATEGORIES as $value => $label): ?>
+                                    <option value="<?= $value ?>"><?= $label ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="assignee_id">Assigned to (optional)</label>
+                            <select id="assignee_id" name="assignee_id">
+                                <option value="">Unassigned</option>
+                                <?php foreach ($assignableMembers as $person): ?>
+                                    <option value="<?= (int) $person['id'] ?>"><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
 
                     <div class="form-row">
                         <div>

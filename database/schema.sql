@@ -135,11 +135,17 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
     trip_id         INT UNSIGNED        NOT NULL,
     item_date       DATE                NOT NULL,
     item_time       TIME                NULL,
+    end_time        TIME                NULL,
     title           VARCHAR(150)        NOT NULL,
     location        VARCHAR(150)        NULL,
+    category        ENUM('sightseeing', 'food', 'transport', 'lodging', 'activity', 'shopping', 'other') NULL,
+    assignee_id     INT UNSIGNED        NULL,
+    sort_order      INT UNSIGNED        NOT NULL DEFAULT 0,
     notes           TEXT                NULL,
     estimated_cost  DECIMAL(10,2)       NULL,
     actual_cost     DECIMAL(10,2)       NULL,
+    completed_at    TIMESTAMP           NULL,
+    completed_by    INT UNSIGNED        NULL,
     created_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP
                                          ON UPDATE CURRENT_TIMESTAMP,
@@ -148,8 +154,16 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
         FOREIGN KEY (trip_id) REFERENCES trips(id)
         ON DELETE CASCADE,
 
+    CONSTRAINT fk_itinerary_assignee
+        FOREIGN KEY (assignee_id) REFERENCES users(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_itinerary_completed_by
+        FOREIGN KEY (completed_by) REFERENCES users(id)
+        ON DELETE SET NULL,
+
     INDEX idx_itinerary_trip_id (trip_id),
-    INDEX idx_itinerary_trip_date (trip_id, item_date)
+    INDEX idx_itinerary_trip_date (trip_id, item_date),
+    INDEX idx_itinerary_trip_date_order (trip_id, item_date, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- See database/migration_005_add_itinerary_items.sql for the
@@ -157,7 +171,9 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
 -- check, no separate days table, etc.), and
 -- database/migration_006_add_budget_fields.sql for estimated_cost /
 -- actual_cost (both all-in amounts, tax included, no separate tax
--- column -- see that migration's notes)
+-- column -- see that migration's notes), and
+-- database/migration_018_add_itinerary_activity_fields.sql for end_time,
+-- category, assignee_id, sort_order, completed_at and completed_by (FR-19)
 
 -- FR-17 activity slice: votes and comments on itinerary activities.
 -- See database/migration_016_add_itinerary_feedback.sql for the notes.

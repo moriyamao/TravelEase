@@ -27,6 +27,10 @@ const TRIP_ACTIVITY_EVENTS = [
     'activity_updated'      => '{actor} updated the activity "{details}"',
     'activity_deleted'      => '{actor} deleted the activity "{details}"',
     'comment_added'         => '{actor} commented on "{details}"',
+    'activity_completed'    => '{actor} marked "{details}" as done',
+    'activity_reopened'     => '{actor} reopened "{details}"',
+    'activity_moved_up'     => '{actor} moved "{details}" earlier in the day',
+    'activity_moved_down'   => '{actor} moved "{details}" later in the day',
 ];
 
 const TRIP_ROLE_LABELS = [

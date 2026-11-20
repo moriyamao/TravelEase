@@ -19,8 +19,8 @@ if ($itemId === false || $itemId === null) {
 $pdo = get_db_connection();
 
 $stmt = $pdo->prepare(
-    'SELECT i.id, i.trip_id, i.item_date, i.item_time, i.title, i.location, i.notes,
-            i.estimated_cost, i.actual_cost,
+    'SELECT i.id, i.trip_id, i.item_date, i.item_time, i.end_time, i.title, i.location, i.notes,
+            i.estimated_cost, i.actual_cost, i.category, i.assignee_id,
             t.start_date AS trip_start, t.end_date AS trip_end, t.name AS trip_name,
             t.budget_currency
      FROM itinerary_items i
@@ -47,6 +47,29 @@ $location  = $item['location'] ?? '';
 $notes     = $item['notes'] ?? '';
 $estimated = $item['estimated_cost'] !== null ? (string) $item['estimated_cost'] : '';
 $actual    = $item['actual_cost'] !== null ? (string) $item['actual_cost'] : '';
+$endTime   = $item['end_time'] !== null ? substr($item['end_time'], 0, 5) : '';
+$category  = $item['category'] ?? '';
+$assigneeRaw = $item['assignee_id'] !== null ? (string) $item['assignee_id'] : '';
+
+// Assignee choices: current customer members, plus the current assignee
+// if they have since left (kept as a historical assignment).
+$stmt = $pdo->prepare(
+    'SELECT u.id, u.name FROM trips t JOIN users u ON u.id = t.user_id
+     WHERE t.id = :owner_trip_id AND u.role = \'customer\'
+     UNION
+     SELECT u.id, u.name FROM trip_memberships m JOIN users u ON u.id = m.user_id
+     WHERE m.trip_id = :member_trip_id AND u.role = \'customer\'
+       AND m.role IN (\'editor\', \'commenter\', \'viewer\')
+     ORDER BY name'
+);
+$stmt->execute(['owner_trip_id' => $item['trip_id'], 'member_trip_id' => $item['trip_id']]);
+$assignable = $stmt->fetchAll();
+$historicalAssignee = null;
+if ($item['assignee_id'] !== null && !in_array((int) $item['assignee_id'], array_map('intval', array_column($assignable, 'id')), true)) {
+    $stmt = $pdo->prepare('SELECT name FROM users WHERE id = :id');
+    $stmt->execute(['id' => $item['assignee_id']]);
+    $historicalAssignee = ['id' => (int) $item['assignee_id'], 'name' => (string) $stmt->fetchColumn()];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -60,6 +83,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notes     = trim($_POST['notes'] ?? '');
         $estimated = trim($_POST['estimated_cost'] ?? '');
         $actual    = trim($_POST['actual_cost'] ?? '');
+        // FR-19 fields. A form that does not send them (older page) keeps
+        // the activity's current end time, category and assignee.
+        $postString = fn(string $key, string $current): string =>
+            array_key_exists($key, $_POST) ? (is_string($_POST[$key]) ? trim($_POST[$key]) : "\0") : $current;
+        $endTime     = $postString('end_time', $endTime);
+        $category    = $postString('category', $category);
+        $assigneeRaw = $postString('assignee_id', $assigneeRaw);
+        $assigneeId  = parse_item_assignee($assigneeRaw);
+        // An older page has no end-time field: if its new start no longer
+        // fits the stored end time, drop the end time instead of failing
+        // on a field the user cannot see.
+        if (!array_key_exists('end_time', $_POST) && validate_item_end_time($itemTime, $endTime) !== null) {
+            $endTime = '';
+        }
 
         if ($err = validate_item_date($itemDate, $item['trip_start'], $item['trip_end'])) $errors[] = $err;
         if ($err = validate_item_time($itemTime))     $errors[] = $err;
@@ -68,39 +105,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($err = validate_item_notes($notes))       $errors[] = $err;
         if ($err = validate_money_amount($estimated, 'Estimated cost')) $errors[] = $err;
         if ($err = validate_money_amount($actual, 'Actual cost'))       $errors[] = $err;
+        if ($err = validate_item_end_time($itemTime, $endTime)) $errors[] = $err;
+        if ($err = validate_item_category($category))  $errors[] = $err;
+        if ($assigneeId === false) $errors[] = 'Choose a current trip member to assign.';
 
         if (empty($errors)) {
             try {
                 // Re-check the role under the trip lock, then write.
                 $pdo->beginTransaction();
                 lock_trip_and_require_permission($pdo, (int) $item['trip_id'], 'edit_itinerary');
-                $stmt = $pdo->prepare(
-                    'UPDATE itinerary_items
-                     SET item_date = :item_date, item_time = :item_time,
-                         title = :title, location = :location, notes = :notes,
-                         estimated_cost = :estimated_cost, actual_cost = :actual_cost
-                     WHERE id = :id AND trip_id = :trip_id'
-                );
-                $stmt->execute([
-                    'item_date'      => $itemDate,
-                    'item_time'      => $itemTime !== '' ? $itemTime : null,
-                    'title'          => $title,
-                    'location'       => $location !== '' ? $location : null,
-                    'notes'          => $notes !== '' ? $notes : null,
-                    'estimated_cost' => $estimated !== '' ? $estimated : null,
-                    'actual_cost'    => $actual !== '' ? $actual : null,
-                    'id'             => $itemId,
-                    'trip_id'        => $item['trip_id'],
-                ]);
-                // Log only a real change: 0 rows means nothing changed, or
-                // the activity was deleted after this form was opened.
-                if ($stmt->rowCount() > 0) {
-                    log_trip_activity($pdo, (int) $item['trip_id'], 'activity_updated', null, $title);
-                }
-                $pdo->commit();
 
-                header('Location: /customer/trips/view.php?id=' . $item['trip_id']);
-                exit;
+                // Re-read the activity under the lock (it may have been
+                // deleted or changed since this form was opened).
+                $stmt = $pdo->prepare(
+                    'SELECT item_date, assignee_id, sort_order FROM itinerary_items
+                     WHERE id = :id AND trip_id = :trip_id FOR UPDATE'
+                );
+                $stmt->execute(['id' => $itemId, 'trip_id' => $item['trip_id']]);
+                $current = $stmt->fetch();
+                if (!$current) {
+                    $pdo->rollBack();
+                    http_response_code(404);
+                    die('Item not found.');
+                }
+
+                // A new assignee must be a current customer member. Keeping
+                // the existing assignee is allowed even if they have left.
+                $keepsAssignee = $assigneeId !== null && $current['assignee_id'] !== null
+                    && $assigneeId === (int) $current['assignee_id'];
+                if ($assigneeId !== null && !$keepsAssignee
+                    && !trip_member_is_assignable($pdo, (int) $item['trip_id'], $assigneeId)) {
+                    $pdo->rollBack();
+                    $errors[] = 'Choose a current trip member to assign.';
+                } else {
+                    // Moving to another day places it by that day's order.
+                    $sortOrder = $itemDate === $current['item_date']
+                        ? (int) $current['sort_order']
+                        : itinerary_next_sort_order($pdo, (int) $item['trip_id'], $itemDate, $itemId);
+                    $stmt = $pdo->prepare(
+                        'UPDATE itinerary_items
+                         SET item_date = :item_date, item_time = :item_time, end_time = :end_time,
+                             title = :title, location = :location, category = :category,
+                             assignee_id = :assignee_id, sort_order = :sort_order, notes = :notes,
+                             estimated_cost = :estimated_cost, actual_cost = :actual_cost
+                         WHERE id = :id AND trip_id = :trip_id'
+                    );
+                    $stmt->execute([
+                        'item_date'      => $itemDate,
+                        'item_time'      => $itemTime !== '' ? $itemTime : null,
+                        'end_time'       => $endTime !== '' ? $endTime : null,
+                        'title'          => $title,
+                        'location'       => $location !== '' ? $location : null,
+                        'category'       => $category !== '' ? $category : null,
+                        'assignee_id'    => $assigneeId,
+                        'sort_order'     => $sortOrder,
+                        'notes'          => $notes !== '' ? $notes : null,
+                        'estimated_cost' => $estimated !== '' ? $estimated : null,
+                        'actual_cost'    => $actual !== '' ? $actual : null,
+                        'id'             => $itemId,
+                        'trip_id'        => $item['trip_id'],
+                    ]);
+                    // Log only a real change (0 rows = nothing changed).
+                    if ($stmt->rowCount() > 0) {
+                        log_trip_activity($pdo, (int) $item['trip_id'], 'activity_updated', null, $title);
+                    }
+                    $pdo->commit();
+
+                    header('Location: /customer/trips/view.php?id=' . $item['trip_id']);
+                    exit;
+                }
 
             } catch (PDOException $e) {
                 if ($pdo->inTransaction()) {
@@ -157,15 +230,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                value="<?= htmlspecialchars($itemDate, ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                     <div>
-                        <label for="item_time">Time (optional)</label>
+                        <label for="item_time">Start time (optional)</label>
                         <input type="time" id="item_time" name="item_time"
-                               value="<?= htmlspecialchars($itemTime, ENT_QUOTES, 'UTF-8') ?>">
+                               value="<?= htmlspecialchars(substr($itemTime, 0, 5), ENT_QUOTES, 'UTF-8') ?>">
+                    </div>
+                    <div>
+                        <label for="end_time">End time (optional)</label>
+                        <input type="time" id="end_time" name="end_time"
+                               value="<?= htmlspecialchars($endTime, ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                 </div>
 
                 <label for="location">Location (optional)</label>
                 <input type="text" id="location" name="location" maxlength="150"
                        value="<?= htmlspecialchars($location, ENT_QUOTES, 'UTF-8') ?>">
+
+                <div class="form-row">
+                    <div>
+                        <label for="category">Category (optional)</label>
+                        <select id="category" name="category">
+                            <option value="">Uncategorized</option>
+                            <?php foreach (ITINERARY_CATEGORIES as $value => $label): ?>
+                                <option value="<?= $value ?>" <?= $category === $value ? 'selected' : '' ?>><?= $label ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="assignee_id">Assigned to (optional)</label>
+                        <select id="assignee_id" name="assignee_id">
+                            <option value="">Unassigned</option>
+                            <?php foreach ($assignable as $person): ?>
+                                <option value="<?= (int) $person['id'] ?>" <?= $assigneeRaw === (string) $person['id'] ? 'selected' : '' ?>><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                            <?php if ($historicalAssignee): ?>
+                                <option value="<?= $historicalAssignee['id'] ?>" <?= $assigneeRaw === (string) $historicalAssignee['id'] ? 'selected' : '' ?>><?= htmlspecialchars($historicalAssignee['name'], ENT_QUOTES, 'UTF-8') ?> (no longer on this trip)</option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                </div>
 
                 <div class="form-row">
                     <div>

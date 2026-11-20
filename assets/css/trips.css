@@ -88,3 +88,11 @@
 .trip-history-time { min-width: 11rem; color: var(--ink-muted); font-family: 'DM Mono', monospace; font-size: .72rem; }
 .trip-history-text { flex: 1 1 18rem; overflow-wrap: anywhere; }
 .trip-history-note { margin-top: .8rem; color: var(--ink-muted); font-size: .8rem; }
+
+/* Itinerary activity details and controls (FR-19) */
+.itinerary-meta { display: flex; flex-wrap: wrap; gap: .3rem .7rem; margin: .3rem 0 0; color: var(--ink-muted); font-size: .78rem; }
+.itinerary-category { padding: 0 .45rem; border: 1px solid var(--line-dark); border-radius: 999px; font-size: .72rem; }
+.itinerary-done { color: var(--route); font-weight: 700; }
+.itinerary-item.is-done .itinerary-title { text-decoration: line-through; color: var(--ink-muted); }
+.itinerary-item-actions { flex-wrap: wrap; align-items: center; }
+.itinerary-item-actions form button:not(.link-danger) { padding: 0; border: 0; background: none; color: var(--stamp-dark); font: inherit; font-weight: 700; cursor: pointer; }
