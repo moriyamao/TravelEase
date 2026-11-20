@@ -18,6 +18,7 @@ $pdo = get_db_connection();
 $tripRole = require_trip_permission($pdo, $tripId, 'view');
 $canEditItinerary = trip_role_can($tripRole, 'edit_itinerary');
 $canManageTrip = trip_role_can($tripRole, 'manage_trip');
+$canGiveFeedback = trip_role_can($tripRole, 'feedback');
 
 // Access was authorized above through the trip role, so ?id= values
 // for trips the user is not a member of never reach this query (§26).
@@ -61,14 +62,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
 
 // Itinerary items for this trip -- membership was already authorized
 // above, so this second query is safe to filter by trip_id alone.
+// FR-17 feedback rides along in the same query (no extra round trip):
+// - votes count only members who can vote now (the owner, editors and
+//   commenters), so removed or demoted members' votes drop out;
+// - votes and comments are aggregated in separate subqueries, so neither
+//   total is multiplied by the other;
+// - edited_after_feedback compares the activity's updated_at with the
+//   EARLIEST vote or comment creation (feedback never touches the item).
 $stmt = $pdo->prepare(
-    'SELECT id, item_date, item_time, title, location, notes, estimated_cost, actual_cost
-     FROM itinerary_items
-     WHERE trip_id = :trip_id
-     ORDER BY item_date ASC, item_time ASC'
+    'SELECT i.id, i.item_date, i.item_time, i.title, i.location, i.notes,
+            i.estimated_cost, i.actual_cost,
+            COALESCE(v.up_votes, 0) AS up_votes,
+            COALESCE(v.down_votes, 0) AS down_votes,
+            COALESCE(c.comment_count, 0) AS comment_count,
+            mv.vote AS my_vote,
+            COALESCE(i.updated_at > LEAST(COALESCE(v.first_vote_at, c.first_comment_at),
+                                          COALESCE(c.first_comment_at, v.first_vote_at)), 0)
+                AS edited_after_feedback
+     FROM itinerary_items i
+     LEFT JOIN (
+         SELECT iv.itinerary_item_id,
+                SUM(iv.vote = 1 AND (iv.user_id = vt.user_id OR COALESCE(vm.role IN (\'editor\', \'commenter\'), 0))) AS up_votes,
+                SUM(iv.vote = -1 AND (iv.user_id = vt.user_id OR COALESCE(vm.role IN (\'editor\', \'commenter\'), 0))) AS down_votes,
+                MIN(iv.created_at) AS first_vote_at
+         FROM itinerary_item_votes iv
+         JOIN itinerary_items vi ON vi.id = iv.itinerary_item_id
+         JOIN trips vt ON vt.id = vi.trip_id
+         LEFT JOIN trip_memberships vm ON vm.trip_id = vt.id AND vm.user_id = iv.user_id
+         WHERE vi.trip_id = :vote_trip_id
+         GROUP BY iv.itinerary_item_id
+     ) v ON v.itinerary_item_id = i.id
+     LEFT JOIN (
+         SELECT ic.itinerary_item_id,
+                COUNT(*) AS comment_count,
+                MIN(ic.created_at) AS first_comment_at
+         FROM itinerary_item_comments ic
+         JOIN itinerary_items ci ON ci.id = ic.itinerary_item_id
+         WHERE ci.trip_id = :comment_trip_id
+         GROUP BY ic.itinerary_item_id
+     ) c ON c.itinerary_item_id = i.id
+     LEFT JOIN itinerary_item_votes mv ON mv.itinerary_item_id = i.id AND mv.user_id = :me
+     WHERE i.trip_id = :trip_id
+     ORDER BY i.item_date ASC, i.item_time ASC'
 );
-$stmt->execute(['trip_id' => $tripId]);
+$stmt->execute([
+    'vote_trip_id'    => $tripId,
+    'comment_trip_id' => $tripId,
+    'me'              => (int) current_user_id(),
+    'trip_id'         => $tripId,
+]);
 $items = $stmt->fetchAll();
+
+// Comments for every activity in one query, skipped when there are none.
+$commentsByItem = [];
+if (array_sum(array_column($items, 'comment_count')) > 0) {
+    $stmt = $pdo->prepare(
+        'SELECT ic.itinerary_item_id, ic.body, ic.created_at, u.name
+         FROM itinerary_item_comments ic
+         JOIN itinerary_items i ON i.id = ic.itinerary_item_id
+         JOIN users u ON u.id = ic.user_id
+         WHERE i.trip_id = :trip_id
+         ORDER BY ic.created_at ASC, ic.id ASC'
+    );
+    $stmt->execute(['trip_id' => $tripId]);
+    foreach ($stmt->fetchAll() as $comment) {
+        $commentsByItem[(int) $comment['itinerary_item_id']][] = $comment;
+    }
+}
 
 // Group items by date for the day-by-day display.
 $itemsByDate = [];
@@ -227,7 +287,7 @@ $statusLabels = [
                         <h3 class="itinerary-day-heading"><?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?></h3>
                         <ul class="itinerary-list">
                             <?php foreach ($dayItems as $item): ?>
-                                <li class="itinerary-item">
+                                <li class="itinerary-item" id="item-<?= (int) $item['id'] ?>">
                                     <div class="itinerary-item-main">
                                         <?php if (!empty($item['item_time'])): ?>
                                             <span class="itinerary-time"><?= htmlspecialchars(substr($item['item_time'], 0, 5), ENT_QUOTES, 'UTF-8') ?></span>
@@ -261,6 +321,63 @@ $statusLabels = [
                                         </form>
                                     </div>
                                     <?php endif; ?>
+                                    <?php
+                                        $itemId = (int) $item['id'];
+                                        $myVote = $item['my_vote'] === null ? 0 : (int) $item['my_vote'];
+                                        $itemComments = $commentsByItem[$itemId] ?? [];
+                                    ?>
+                                    <div class="itinerary-feedback">
+                                        <p class="itinerary-votes">
+                                            <?= (int) $item['up_votes'] ?> up &middot; <?= (int) $item['down_votes'] ?> down
+                                            <?php if ((int) $item['edited_after_feedback'] === 1): ?>
+                                                <span class="feedback-edited">Edited after feedback</span>
+                                            <?php endif; ?>
+                                        </p>
+                                        <?php if ($canGiveFeedback): ?>
+                                        <div class="feedback-vote-actions">
+                                            <?php foreach (['up' => 1, 'down' => -1] as $choice => $value): ?>
+                                                <form method="post" action="/customer/trips/item_feedback.php">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                    <input type="hidden" name="action" value="vote">
+                                                    <input type="hidden" name="vote" value="<?= $choice ?>">
+                                                    <button type="submit" aria-pressed="<?= $myVote === $value ? 'true' : 'false' ?>"><?= $choice === 'up' ? 'Vote up' : 'Vote down' ?></button>
+                                                </form>
+                                            <?php endforeach; ?>
+                                            <?php if ($myVote !== 0): ?>
+                                                <form method="post" action="/customer/trips/item_feedback.php">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                    <input type="hidden" name="action" value="clear_vote">
+                                                    <button type="submit">Clear my vote</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php endif; ?>
+                                        <?php if ($itemComments): ?>
+                                            <ul class="feedback-comments">
+                                                <?php foreach ($itemComments as $comment): ?>
+                                                    <li>
+                                                        <p class="feedback-comment-meta"><?= htmlspecialchars($comment['name'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(gmdate('M j, Y H:i', strtotime($comment['created_at'] . ' UTC')), ENT_QUOTES, 'UTF-8') ?> UTC</p>
+                                                        <p class="feedback-comment-body"><?= htmlspecialchars($comment['body'], ENT_QUOTES, 'UTF-8') ?></p>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        <?php endif; ?>
+                                        <?php if ($canGiveFeedback): ?>
+                                            <form class="feedback-comment-form" method="post" action="/customer/trips/item_feedback.php">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                <input type="hidden" name="action" value="comment">
+                                                <label for="comment-<?= $itemId ?>">Add a comment</label>
+                                                <textarea id="comment-<?= $itemId ?>" name="body" rows="2" maxlength="1000" required></textarea>
+                                                <button type="submit">Post comment</button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </li>
                             <?php endforeach; ?>
                         </ul>

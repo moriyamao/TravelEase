@@ -12,7 +12,7 @@ This is a Mapúa University academic team project. The repository has progressed
 | --- | --- |
 | Accounts | Email/password registration and login, email verification, Google Sign-In with explicit account linking, logout, role-based routing |
 | Trip planning | Create, view, edit, and delete customer-owned trips with destination, dates, status, and notes |
-| Collaboration | Owners invite verified customers by exact email as Editor, Commenter, or Viewer; invitees accept or decline from their dashboard. Editors change the itinerary; Commenters and Viewers are read-only (comments are not built yet). Only the owner edits trip details, invites, or deletes the trip. Owners can change member roles, remove members, revoke pending invitations, and transfer ownership (the previous owner stays as an editor; a trip always has exactly one owner). Members can leave a trip without affecting its plan or other members. Invitation email lookups are limited to 20 per hour per account |
+| Collaboration | Owners invite verified customers by exact email as Editor, Commenter, or Viewer; invitees accept or decline from their dashboard. Editors change the itinerary. Owners, Editors and Commenters can vote up or down on each itinerary activity (one vote per member, changeable) and comment on it; Viewers see votes and comments but cannot add them (FR-17 activity slice; voting on destination proposals is deferred). Only the owner edits trip details, invites, or deletes the trip. Owners can change member roles, remove members, revoke pending invitations, and transfer ownership (the previous owner stays as an editor; a trip always has exactly one owner). Members can leave a trip without affecting its plan or other members. Invitation email lookups are limited to 20 per hour per account |
 | Itineraries | Add, edit, and remove dated activities with optional time, location, notes, and costs |
 | Budgeting | Trip currency and budget, estimated/actual itinerary costs, totals, and remaining/over-budget display |
 | Profiles | Profile editing and validated profile-picture uploads |
@@ -123,7 +123,7 @@ Useful smoke checks for a new environment include login/logout, denied customer 
 - Protect configuration, environment files, SQL files, and internal documents from direct HTTP access when serving the repository root. Do not treat the development server or the current container configuration as a complete production hardening baseline.
 - Uploaded profile pictures use local storage. Render's ephemeral filesystem can discard them on restart/redeploy; durable storage requires a persistent disk or external object storage.
 - Login and chat rate limits are per-session, not shared limits across sessions or hosts.
-- Password reset is not implemented. Collaboration does not yet send invitation emails or support comments.
+- Password reset is not implemented. Collaboration does not yet send invitation emails. Comments cannot be edited or deleted yet, and destination proposals (the destination part of FR-17) are not built.
 - The deployment report describes a database TLS configuration, but the current `config/database.php` does not explicitly configure PDO TLS options. Verify the actual connection configuration before relying on encrypted database transport.
 - AI answers can be inaccurate, and human follow-up depends on staff availability. Do not submit payment credentials or other sensitive information to the chat.
 
