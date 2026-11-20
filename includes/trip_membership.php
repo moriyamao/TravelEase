@@ -12,6 +12,8 @@
 const TRIP_PERMISSIONS = [
     'view'           => ['owner', 'editor', 'commenter', 'viewer'],
     'edit_itinerary' => ['owner', 'editor'],
+    // FR-17: vote and comment on itinerary activities. Viewers read only.
+    'feedback'       => ['owner', 'editor', 'commenter'],
     'manage_trip'    => ['owner'],
 ];
 

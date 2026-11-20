@@ -63,3 +63,20 @@
 /* Trip member management controls (FR-13/FR-14) */
 .trip-member-form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0.25rem 0.5rem 0 0; }
 .trip-member-form select { width: auto; margin: 0; }
+
+/* Activity feedback: votes and comments (FR-17 activity slice) */
+.itinerary-feedback { margin-top: .55rem; font-size: .8rem; }
+.itinerary-votes { margin: 0; color: var(--ink-muted); font-family: 'DM Mono', monospace; font-size: .71rem; }
+.feedback-edited { margin-left: .4rem; padding: .05rem .4rem; border: 1px solid var(--line-dark); border-radius: 999px; }
+.feedback-vote-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .35rem; }
+.feedback-vote-actions form { margin: 0; }
+.feedback-vote-actions button, .feedback-comment-form button { padding: .25rem .6rem; border: 1px solid var(--line-dark); border-radius: 6px; background: var(--paper-white); cursor: pointer; }
+.feedback-vote-actions button[aria-pressed="true"] { border-color: var(--stamp); background: var(--stamp); color: #fff; }
+.feedback-comments { margin: .5rem 0 0; padding: 0; list-style: none; }
+.feedback-comments li { margin-top: .4rem; padding-left: .6rem; border-left: 2px solid var(--line); }
+.feedback-comment-meta { margin: 0; color: var(--ink-muted); font-size: .72rem; }
+.feedback-comment-body { margin: .1rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feedback-comment-form { margin-top: .5rem; }
+.feedback-comment-form label { display: block; font-size: .75rem; }
+.feedback-comment-form textarea { width: 100%; }
+.feedback-comment-form button { margin-top: .3rem; }

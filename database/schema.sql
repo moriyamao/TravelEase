@@ -158,3 +158,35 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
 -- database/migration_006_add_budget_fields.sql for estimated_cost /
 -- actual_cost (both all-in amounts, tax included, no separate tax
 -- column -- see that migration's notes)
+
+-- FR-17 activity slice: votes and comments on itinerary activities.
+-- See database/migration_016_add_itinerary_feedback.sql for the notes.
+CREATE TABLE IF NOT EXISTS itinerary_item_votes (
+    itinerary_item_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    vote TINYINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                         ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (itinerary_item_id, user_id),
+    INDEX idx_itinerary_item_votes_user (user_id),
+    CONSTRAINT chk_itinerary_item_votes_vote CHECK (vote IN (-1, 1)),
+    CONSTRAINT fk_itinerary_item_votes_item
+        FOREIGN KEY (itinerary_item_id) REFERENCES itinerary_items(id) ON DELETE CASCADE,
+    CONSTRAINT fk_itinerary_item_votes_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS itinerary_item_comments (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    itinerary_item_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    body VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_itinerary_item_comments_item (itinerary_item_id, created_at),
+    INDEX idx_itinerary_item_comments_user (user_id),
+    CONSTRAINT fk_itinerary_item_comments_item
+        FOREIGN KEY (itinerary_item_id) REFERENCES itinerary_items(id) ON DELETE CASCADE,
+    CONSTRAINT fk_itinerary_item_comments_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
