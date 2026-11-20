@@ -31,6 +31,11 @@ const TRIP_ACTIVITY_EVENTS = [
     'activity_reopened'     => '{actor} reopened "{details}"',
     'activity_moved_up'     => '{actor} moved "{details}" earlier in the day',
     'activity_moved_down'   => '{actor} moved "{details}" later in the day',
+    'place_added'           => '{actor} saved the place "{details}"',
+    'place_updated'         => '{actor} updated the place "{details}"',
+    'place_deleted'         => '{actor} removed the place "{details}"',
+    'place_linked'          => '{actor} linked a place to "{details}"',
+    'place_unlinked'        => '{actor} unlinked the place from "{details}"',
 ];
 
 const TRIP_ROLE_LABELS = [

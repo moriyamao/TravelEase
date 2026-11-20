@@ -67,6 +67,17 @@
             details, government ID numbers) in chat messages.
         </p>
 
+        <h3>Maps and place search</h3>
+        <p>
+            When a trip member searches for a place or for nearby places, the search text, or the
+            saved coordinates for a nearby search, is sent from our server to Geoapify to find
+            matching places. Trip notes, member names and email addresses are not sent. The trip&#039;s
+            Places &amp; map page loads the Leaflet map library from unpkg.com and map images from
+            OpenStreetMap&#039;s tile servers, so your browser connects to those services and they
+            receive your IP address and the map area being viewed. Directions links open
+            OpenStreetMap in a new tab.
+        </p>
+
         <h2>4. How We Store Information</h2>
         <p>
             Your data is stored in a managed database with access restricted to what the
