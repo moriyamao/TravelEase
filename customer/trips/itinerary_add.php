@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 
@@ -86,6 +87,7 @@ try {
         'estimated_cost' => $estimated !== '' ? $estimated : null,
         'actual_cost'    => $actual !== '' ? $actual : null,
     ]);
+    log_trip_activity($pdo, $tripId, 'activity_added', null, $title);
     $pdo->commit();
 
     header('Location: /customer/trips/view.php?id=' . $tripId);

@@ -190,3 +190,24 @@ CREATE TABLE IF NOT EXISTS itinerary_item_comments (
     CONSTRAINT fk_itinerary_item_comments_user
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- FR-18: trip activity history.
+-- See database/migration_017_add_trip_activity_log.sql for the notes.
+CREATE TABLE IF NOT EXISTS trip_activity_log (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trip_id INT UNSIGNED NOT NULL,
+    actor_id INT UNSIGNED NULL,
+    event_type VARCHAR(40) NOT NULL,
+    target_user_id INT UNSIGNED NULL,
+    details VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_trip_activity_log_trip (trip_id, created_at, id),
+    INDEX idx_trip_activity_log_actor (actor_id),
+    INDEX idx_trip_activity_log_target (target_user_id),
+    CONSTRAINT fk_trip_activity_log_trip
+        FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_trip_activity_log_actor
+        FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_trip_activity_log_target
+        FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

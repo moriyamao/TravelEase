@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 
@@ -91,6 +92,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'id'             => $itemId,
                     'trip_id'        => $item['trip_id'],
                 ]);
+                // Log only a real change: 0 rows means nothing changed, or
+                // the activity was deleted after this form was opened.
+                if ($stmt->rowCount() > 0) {
+                    log_trip_activity($pdo, (int) $item['trip_id'], 'activity_updated', null, $title);
+                }
                 $pdo->commit();
 
                 header('Location: /customer/trips/view.php?id=' . $item['trip_id']);

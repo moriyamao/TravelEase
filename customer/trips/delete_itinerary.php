@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 
@@ -42,8 +43,14 @@ try {
     // Re-check the role under the trip lock, then delete.
     $pdo->beginTransaction();
     lock_trip_and_require_permission($pdo, (int) $row['trip_id'], 'edit_itinerary');
-    $stmt = $pdo->prepare('DELETE FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
+    $stmt = $pdo->prepare('SELECT title FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
     $stmt->execute(['id' => $itemId, 'trip_id' => $row['trip_id']]);
+    $title = $stmt->fetchColumn();
+    if ($title !== false) {
+        $stmt = $pdo->prepare('DELETE FROM itinerary_items WHERE id = :id AND trip_id = :trip_id');
+        $stmt->execute(['id' => $itemId, 'trip_id' => $row['trip_id']]);
+        log_trip_activity($pdo, (int) $row['trip_id'], 'activity_deleted', null, (string) $title);
+    }
     $pdo->commit();
 
     header('Location: /customer/trips/view.php?id=' . $row['trip_id']);

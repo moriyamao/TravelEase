@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/session.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/trip_activity.php';
 
 require_role(['customer']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -67,6 +68,14 @@ try {
     }
     $stmt = $pdo->prepare('UPDATE trip_invitations SET status = :status, responded_at = UTC_TIMESTAMP() WHERE id = :id');
     $stmt->execute(['status' => $decision === 'accept' ? 'accepted' : 'declined', 'id' => $invitationId]);
+    log_trip_activity(
+        $pdo,
+        (int) $invitation['trip_id'],
+        $decision === 'accept' ? 'invitation_accepted' : 'invitation_declined',
+        null,
+        TRIP_ROLE_LABELS[$invitation['role']] ?? $invitation['role'],
+        $decision === 'decline'
+    );
     $pdo->commit();
     header('Location: ' . ($decision === 'accept'
         ? '/customer/trips/view.php?id=' . (int) $invitation['trip_id']
