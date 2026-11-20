@@ -49,6 +49,14 @@ $location     = trim($_POST['location'] ?? '');
 $notes        = trim($_POST['notes'] ?? '');
 $estimated    = trim($_POST['estimated_cost'] ?? '');
 $actual       = trim($_POST['actual_cost'] ?? '');
+// FR-19 fields. Older forms (e.g. AI suggestion cards) do not send them,
+// so a missing field means no end time, no category and unassigned.
+// A non-string value (e.g. category[]=x) becomes "\0", which fails validation.
+$postString   = fn(string $key): string => !array_key_exists($key, $_POST) ? ''
+    : (is_string($_POST[$key]) ? trim($_POST[$key]) : "\0");
+$endTime      = $postString('end_time');
+$category     = $postString('category');
+$assigneeId   = parse_item_assignee($postString('assignee_id'));
 
 $errors = [];
 if ($err = validate_item_date($itemDate, $trip['start_date'], $trip['end_date'])) $errors[] = $err;
@@ -58,6 +66,9 @@ if ($err = validate_item_location($location)) $errors[] = $err;
 if ($err = validate_item_notes($notes))       $errors[] = $err;
 if ($err = validate_money_amount($estimated, 'Estimated cost')) $errors[] = $err;
 if ($err = validate_money_amount($actual, 'Actual cost'))       $errors[] = $err;
+if ($err = validate_item_end_time($itemTime, $endTime)) $errors[] = $err;
+if ($err = validate_item_category($category))  $errors[] = $err;
+if ($assigneeId === false) $errors[] = 'Choose a current trip member to assign.';
 
 if (!empty($errors)) {
     // Simple flash-style pass-through via session for this one-off
@@ -73,16 +84,31 @@ try {
     // Re-check the role under the trip lock so a removal or demotion
     // that commits after the check above cannot be bypassed.
     lock_trip_and_require_permission($pdo, $tripId, 'edit_itinerary');
+    // The assignee must be a current customer member, checked under the
+    // same lock that member removals take.
+    if ($assigneeId !== null && !trip_member_is_assignable($pdo, $tripId, $assigneeId)) {
+        $pdo->rollBack();
+        $_SESSION['itinerary_errors'] = ['Choose a current trip member to assign.'];
+        header('Location: /customer/trips/view.php?id=' . $tripId);
+        exit;
+    }
     $stmt = $pdo->prepare(
-        'INSERT INTO itinerary_items (trip_id, item_date, item_time, title, location, notes, estimated_cost, actual_cost)
-         VALUES (:trip_id, :item_date, :item_time, :title, :location, :notes, :estimated_cost, :actual_cost)'
+        'INSERT INTO itinerary_items
+            (trip_id, item_date, item_time, end_time, title, location, category, assignee_id, sort_order,
+             notes, estimated_cost, actual_cost)
+         VALUES (:trip_id, :item_date, :item_time, :end_time, :title, :location, :category, :assignee_id, :sort_order,
+                 :notes, :estimated_cost, :actual_cost)'
     );
     $stmt->execute([
         'trip_id'        => $tripId,
         'item_date'      => $itemDate,
         'item_time'      => $itemTime !== '' ? $itemTime : null,
+        'end_time'       => $endTime !== '' ? $endTime : null,
         'title'          => $title,
         'location'       => $location !== '' ? $location : null,
+        'category'       => $category !== '' ? $category : null,
+        'assignee_id'    => $assigneeId,
+        'sort_order'     => itinerary_next_sort_order($pdo, $tripId, $itemDate),
         'notes'          => $notes !== '' ? $notes : null,
         'estimated_cost' => $estimated !== '' ? $estimated : null,
         'actual_cost'    => $actual !== '' ? $actual : null,

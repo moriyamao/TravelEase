@@ -103,3 +103,26 @@ function lock_trip_and_require_permission(PDO $pdo, int $tripId, string $permiss
     }
     return $role;
 }
+
+/**
+ * FR-19: can $userId be newly assigned to an activity on this trip?
+ * Yes for a current member (owner, editor, commenter or viewer) whose
+ * account is a customer. Call inside the write transaction after
+ * lock_trip_and_require_permission(); the share locks keep the answer
+ * valid until commit.
+ */
+function trip_member_is_assignable(PDO $pdo, int $tripId, int $userId): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT 1
+         FROM trips t
+         JOIN users u ON u.id = :user_id
+         LEFT JOIN trip_memberships m ON m.trip_id = t.id AND m.user_id = u.id
+         WHERE t.id = :trip_id
+           AND u.role = \'customer\'
+           AND (t.user_id = u.id OR m.role IN (\'editor\', \'commenter\', \'viewer\'))
+         LOCK IN SHARE MODE'
+    );
+    $stmt->execute(['user_id' => $userId, 'trip_id' => $tripId]);
+    return $stmt->fetchColumn() !== false;
+}
