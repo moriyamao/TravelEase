@@ -44,12 +44,13 @@ function get_db_connection(): PDO
             RequestTiming::$connect = $setupStart - $connectStart;
         }
 
-        // Store and compare all timestamps in UTC regardless of the DB
-        // server's configured timezone. Local-time display, if ever
+        // One round trip for both session settings:
+        //
+        // time_zone: store and compare all timestamps in UTC regardless of
+        // the DB server's configured timezone. Local-time display, if ever
         // needed, happens in the presentation layer — never in storage.
-        $pdo->exec("SET time_zone = '+00:00'");
-
-        // Aiven's MySQL 8.4 default sql_mode includes both ANSI_QUOTES and
+        //
+        // sql_mode: Aiven's MySQL 8.4 default sql_mode includes both ANSI_QUOTES and
         // the ANSI combination mode. ANSI expands back out to ANSI_QUOTES
         // (among others) the moment SET sql_mode runs, so stripping only
         // the ANSI_QUOTES substring doesn't actually work -- it silently
@@ -57,10 +58,13 @@ function get_db_connection(): PDO
         // the same statement. Verified directly against Aiven: after this,
         // double-quoted string literals (e.g. status = "open") parse
         // correctly again, matching local MariaDB/XAMPP behavior.
-        $pdo->exec("SET sql_mode = REPLACE(REPLACE(@@sql_mode, 'ANSI_QUOTES', ''), 'ANSI,', '')");
+        $pdo->exec(
+            "SET time_zone = '+00:00', "
+            . "sql_mode = REPLACE(REPLACE(@@sql_mode, 'ANSI_QUOTES', ''), 'ANSI,', '')"
+        );
 
         if ($timing) {
-            // Report the two setup statements separately from page queries.
+            // Report the setup statement separately from page queries.
             RequestTiming::$setup = microtime(true) - $setupStart;
             RequestTiming::$counts['other'] = 0;
             RequestTiming::$times['other'] = 0.0;
