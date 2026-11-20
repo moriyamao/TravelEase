@@ -34,7 +34,15 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 
 $tripId = filter_input(INPUT_POST, 'trip_id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 $itemId = filter_input(INPUT_POST, 'item_id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-$action = (string) ($_POST['action'] ?? '');
+// Text fields must be plain strings: an array (e.g. body[]=x) is rejected
+// instead of being cast to "Array".
+foreach (['action', 'vote', 'body'] as $field) {
+    if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+        http_response_code(400);
+        die('Invalid request.');
+    }
+}
+$action = $_POST['action'] ?? '';
 if (!$tripId || !$itemId || !in_array($action, ['vote', 'clear_vote', 'comment'], true)) {
     http_response_code(400);
     die('Invalid request.');
@@ -50,22 +58,29 @@ $back = '/customer/trips/view.php?id=' . $tripId . '#item-' . $itemId;
 $vote = null;
 $body = '';
 if ($action === 'vote') {
-    $choice = (string) ($_POST['vote'] ?? '');
+    $choice = $_POST['vote'] ?? '';
     if (!in_array($choice, ['up', 'down'], true)) {
         http_response_code(400);
         die('Invalid vote.');
     }
     $vote = $choice === 'up' ? 1 : -1;
 } elseif ($action === 'comment') {
-    $body = trim((string) ($_POST['body'] ?? ''));
-    // Count Unicode code points with PCRE's UTF-8 mode (core PHP, no
-    // extension needed). preg_match_all returns false on malformed UTF-8.
-    $length = preg_match_all('/./us', $body);
+    $body = $_POST['body'] ?? '';
+    // Cheap byte cap before any regex work: 1000 characters are at most
+    // 4000 bytes, plus room for CRLF line breaks.
+    $tooLong = strlen($body) > 8000;
+    // Browsers submit textarea line breaks as CRLF but count them as one
+    // character for maxlength; normalise so the server counts the same.
+    $body = str_replace("\r\n", "\n", $body);
+    // Trim Unicode whitespace too (e.g. NBSP, ideographic space). PCRE's
+    // UTF-8 mode is core PHP; it returns null/false on malformed UTF-8.
+    $body = $tooLong ? '' : preg_replace('/^[\s\p{Z}]+|[\s\p{Z}]+$/u', '', $body);
+    $length = $body === null ? false : preg_match_all('/./us', $body);
     if ($length === false) {
         http_response_code(400);
         die('Invalid comment.');
     }
-    if ($length < 1 || $length > 1000) {
+    if ($tooLong || $length < 1 || $length > 1000) {
         $_SESSION['itinerary_errors'] = ['Comments must be between 1 and 1000 characters.'];
         header('Location: ' . $back);
         exit;

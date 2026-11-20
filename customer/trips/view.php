@@ -361,7 +361,7 @@ $statusLabels = [
                                                 <?php foreach ($itemComments as $comment): ?>
                                                     <li>
                                                         <p class="feedback-comment-meta"><?= htmlspecialchars($comment['name'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(gmdate('M j, Y H:i', strtotime($comment['created_at'] . ' UTC')), ENT_QUOTES, 'UTF-8') ?> UTC</p>
-                                                        <p class="feedback-comment-body"><?= nl2br(htmlspecialchars($comment['body'], ENT_QUOTES, 'UTF-8')) ?></p>
+                                                        <p class="feedback-comment-body"><?= htmlspecialchars($comment['body'], ENT_QUOTES, 'UTF-8') ?></p>
                                                     </li>
                                                 <?php endforeach; ?>
                                             </ul>

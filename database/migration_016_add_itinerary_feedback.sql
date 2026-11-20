@@ -4,10 +4,10 @@
 -- activities. Viewers can read feedback but not write it. Destination
 -- proposals are deferred: trips.destination is a single owner-edited
 -- field with no proposal model yet.
--- Adds two new tables only; no existing table changes.
+-- Adds two new tables only. No existing table changes.
 
 -- 1. One vote per member per activity (enforced by the primary key).
---    vote is +1 (up) or -1 (down); changing a vote updates the row and
+--    vote is +1 (up) or -1 (down). Changing a vote updates the row, and
 --    clearing it deletes the row. created_at is kept on change, so the
 --    "edited after feedback" check uses when feedback first arrived.
 CREATE TABLE itinerary_item_votes (
@@ -27,8 +27,8 @@ CREATE TABLE itinerary_item_votes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Comments on an activity, 1-1000 characters (validated in PHP by
---    Unicode character count). Not editable or deletable in this slice;
---    they stay as trip history if the author later leaves the trip.
+--    Unicode character count). Not editable or deletable in this slice.
+--    They stay as trip history if the author later leaves the trip.
 CREATE TABLE itinerary_item_comments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     itinerary_item_id INT UNSIGNED NOT NULL,
