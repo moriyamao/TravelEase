@@ -218,6 +218,7 @@ $statusLabels = [
             <h1>My Trips</h1>
             <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
             <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>" class="logout-link">Places &amp; map</a>
+            <a href="/customer/trips/expenses.php?id=<?= (int) $tripId ?>" class="logout-link">Expenses</a>
             <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
         </header>
 
