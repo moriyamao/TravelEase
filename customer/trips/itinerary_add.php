@@ -84,6 +84,16 @@ try {
     // Re-check the role under the trip lock so a removal or demotion
     // that commits after the check above cannot be bypassed.
     lock_trip_and_require_permission($pdo, $tripId, 'edit_itinerary');
+    // Trip dates may have changed after the form/pre-lock validation.
+    $stmt = $pdo->prepare('SELECT start_date, end_date FROM trips WHERE id = :id FOR UPDATE');
+    $stmt->execute(['id' => $tripId]);
+    $currentTrip = $stmt->fetch();
+    if ($err = validate_item_date($itemDate, $currentTrip['start_date'], $currentTrip['end_date'])) {
+        $pdo->rollBack();
+        $_SESSION['itinerary_errors'] = [$err];
+        header('Location: /customer/trips/view.php?id=' . $tripId);
+        exit;
+    }
     // The assignee must be a current customer member, checked under the
     // same lock that member removals take.
     if ($assigneeId !== null && !trip_member_is_assignable($pdo, $tripId, $assigneeId)) {

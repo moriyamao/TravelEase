@@ -115,6 +115,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->beginTransaction();
                 lock_trip_and_require_permission($pdo, (int) $item['trip_id'], 'edit_itinerary');
 
+                // Revalidate against the current trip dates after acquiring
+                // the lock shared with trip-date changes.
+                $stmt = $pdo->prepare('SELECT start_date, end_date FROM trips WHERE id = :id FOR UPDATE');
+                $stmt->execute(['id' => $item['trip_id']]);
+                $currentTrip = $stmt->fetch();
+                if ($err = validate_item_date($itemDate, $currentTrip['start_date'], $currentTrip['end_date'])) {
+                    throw new DomainException($err);
+                }
+
                 // Re-read the activity under the lock (it may have been
                 // deleted or changed since this form was opened).
                 $stmt = $pdo->prepare(
@@ -175,6 +184,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
 
+            } catch (DomainException $e) {
+                $pdo->rollBack();
+                $errors[] = $e->getMessage();
             } catch (PDOException $e) {
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();

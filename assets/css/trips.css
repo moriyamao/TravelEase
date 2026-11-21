@@ -96,3 +96,8 @@
 .itinerary-item.is-done .itinerary-title { text-decoration: line-through; color: var(--ink-muted); }
 .itinerary-item-actions { flex-wrap: wrap; align-items: center; }
 .itinerary-item-actions form button:not(.link-danger) { padding: 0; border: 0; background: none; color: var(--stamp-dark); font: inherit; font-weight: 700; cursor: pointer; }
+
+/* Schedule warnings (FR-20): informational, never block saving */
+.schedule-summary { margin: 0 0 1rem; padding: .55rem .8rem; border: 1px solid var(--caution); border-radius: 8px; color: var(--ink); font-size: .85rem; }
+.itinerary-warnings { margin: .35rem 0 0; padding: 0; list-style: none; }
+.itinerary-warnings li { margin-top: .2rem; padding-left: .55rem; border-left: 3px solid var(--caution); color: var(--ink); font-size: .8rem; overflow-wrap: anywhere; }
