@@ -105,3 +105,18 @@
 .travel-check { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin: 0 0 1rem; padding: .55rem .8rem; border: 1px dashed var(--line-dark); border-radius: 8px; font-size: .85rem; color: var(--ink-muted); }
 .travel-check button { padding: .35rem .8rem; border: 1px solid var(--stamp); border-radius: 6px; background: var(--paper-white); color: var(--stamp-dark); font-weight: 700; cursor: pointer; }
 .travel-notice { margin: 0 0 1rem; padding: .55rem .8rem; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper-white); font-size: .85rem; }
+/* FR-28 plan review */
+.plan-review { margin: 1.2rem 0; padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-white); overflow-wrap: anywhere; }
+.plan-review-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .6rem 1rem; }
+.plan-review-heading h3 { margin: 0; }
+.plan-review-heading p { margin: .3rem 0 0; color: var(--ink-muted); font-size: .88rem; }
+.plan-review-request button, .plan-review-list button { padding: .5rem .9rem; border: 1px solid var(--stamp); border-radius: 8px; background: var(--stamp); color: #fff; font-weight: 700; cursor: pointer; }
+.plan-review-list button { padding: .3rem .75rem; font-size: .82rem; }
+.plan-review-privacy { margin: .6rem 0 0; color: var(--ink-muted); font-size: .78rem; }
+.plan-review h4 { margin: 1rem 0 .3rem; font-size: .95rem; }
+.plan-review-list { margin: 0; padding-left: 1.1rem; }
+.plan-review-list li { margin: .45rem 0; font-size: .88rem; }
+.plan-review-list li p { margin: .2rem 0 .35rem; color: var(--ink-muted); }
+.plan-review .inline-form { display: inline; margin: 0; }
+.plan-review-clear { margin-top: .6rem; padding: 0; border: 0; background: none; color: var(--stamp-dark); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.plan-review .form-notice { margin-top: .6rem; padding: .5rem .7rem; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper-white); }

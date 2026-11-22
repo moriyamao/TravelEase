@@ -116,7 +116,7 @@ $updated = 'November 22, 2026';
 
         <section id="ai" aria-labelledby="ai-heading">
             <h2 id="ai-heading">AI disclaimer</h2>
-            <p>TravelEase uses Groq, a third-party AI service, for two features. AI answers can be wrong, out of date or incomplete.</p>
+            <p>TravelEase uses Groq, a third-party AI service, for three features. AI answers can be wrong, out of date or incomplete.</p>
             <h3>Support assistant</h3>
             <p>
                 When you send a message to the support chat, that message is sent to Groq to draft an answer. Earlier messages are
@@ -131,6 +131,16 @@ $updated = 'November 22, 2026';
                 Ideas are drafts: nothing is added to your trip until someone with permission reviews it and chooses to add it.
                 Check opening hours, prices, safety and travel requirements yourself before relying on any suggestion.
             </p>
+            <h3>Plan review</h3>
+            <p>
+                When an owner or editor presses "Review my plan", Groq receives the trip's destination, dates, time zone, currency,
+                budget and cost totals, and for each activity its title, date, start and end time, category, saved place name and
+                estimated cost, plus the app's own schedule warnings. Notes, comments, votes, expenses, booking references,
+                reminders and member names or emails are not sent. Groq returns budget tips, ideas and suggested time changes.
+                A time change is only made when someone with permission presses Apply on it, and it is refused if the activity
+                changed after the review. Suggestions are not saved; they disappear after 30 minutes. Each account can request up
+                to five reviews an hour.
+            </p>
         </section>
 
         <section id="services" aria-labelledby="services-heading">
@@ -141,7 +151,7 @@ $updated = 'November 22, 2026';
                 <dt>Aiven</dt>
                 <dd>Hosts the MySQL database that stores the information described above, in the United States.</dd>
                 <dt>Groq</dt>
-                <dd>AI service for the support assistant and trip ideas (see the AI disclaimer).</dd>
+                <dd>AI service for the support assistant, trip ideas and plan review (see the AI disclaimer).</dd>
                 <dt>Brevo</dt>
                 <dd>Sends verification emails and, if you opt in, reminder emails. It receives your name, email address and the email's content.</dd>
                 <dt>Google Sign-In</dt>

@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../includes/itinerary_schedule.php';
 require_once __DIR__ . '/../../includes/travel_time.php';
 require_once __DIR__ . '/../../includes/trip_references.php';
 require_once __DIR__ . '/../../includes/trip_progress.php';
+require_once __DIR__ . '/../../includes/plan_review.php';
 
 require_role(['customer']);
 
@@ -306,6 +307,74 @@ $statusLabels = [
                             </form>
                         <?php endforeach; ?>
                     </div>
+                <?php endif; ?>
+            </section>
+            <?php endif; ?>
+
+            <?php if ($canEditItinerary): ?>
+            <?php
+            $planReview = $_SESSION['plan_review'][$tripId] ?? null;
+            if (is_array($planReview) && $planReview['created'] <= time() - PLAN_REVIEW_TTL) {
+                unset($_SESSION['plan_review'][$tripId]);
+                $planReview = null;
+            }
+            $planNotice = $_SESSION['plan_review_notice'][$tripId] ?? null;
+            $planError = $_SESSION['plan_review_error'][$tripId] ?? null;
+            unset($_SESSION['plan_review_notice'][$tripId], $_SESSION['plan_review_error'][$tripId]);
+            $planTime = fn(array $slot) => date('D, M j', strtotime($slot['date'])) . ($slot['time'] !== '' ? ' ' . $slot['time'] . ($slot['end'] !== '' ? '–' . $slot['end'] : '') : ', any time');
+            ?>
+            <section class="plan-review" id="plan-review" aria-labelledby="plan-review-title">
+                <div class="plan-review-heading">
+                    <div>
+                        <p class="eyebrow">Planning assistant</p>
+                        <h3 id="plan-review-title">Review my plan</h3>
+                        <p>Get budget tips, schedule fixes and ideas for this trip. Nothing changes until you press Apply on a suggestion.</p>
+                    </div>
+                    <form method="post" action="/customer/trips/plan_review.php" class="plan-review-request">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                        <input type="hidden" name="action" value="review">
+                        <button type="submit">Review my plan</button>
+                    </form>
+                </div>
+                <p class="plan-review-privacy">Sent to the AI service: destination, dates, budget, and each activity's title, date, times, category, place name and estimated cost. Notes, comments, expenses, booking references, reminders and member details are not sent. Up to <?= PLAN_REVIEW_LIMIT_PER_HOUR ?> reviews an hour.</p>
+                <?php if ($planNotice): ?><p class="form-notice" role="status"><?= htmlspecialchars($planNotice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+                <?php if ($planError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($planError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+                <?php if ($planReview): ?>
+                    <?php $r = $planReview['review']; ?>
+                    <?php if ($r['schedule']): ?>
+                        <h4>Schedule</h4>
+                        <ul class="plan-review-list">
+                            <?php foreach ($r['schedule'] as $n => $s): ?>
+                                <li>
+                                    <strong><?= htmlspecialchars($s['title'], ENT_QUOTES, 'UTF-8') ?></strong>:
+                                    <?= htmlspecialchars($planTime($s['from']), ENT_QUOTES, 'UTF-8') ?> &rarr; <strong><?= htmlspecialchars($planTime($s['to']), ENT_QUOTES, 'UTF-8') ?></strong>
+                                    <p><?= htmlspecialchars($s['reason'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <form method="post" action="/customer/trips/plan_apply.php" class="inline-form">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                                        <input type="hidden" name="suggestion" value="<?= (int) $n ?>">
+                                        <button type="submit">Apply</button>
+                                    </form>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    <?php foreach (['budget' => 'Budget', 'ideas' => 'Ideas'] as $planKey => $planHeading): ?>
+                        <?php if ($r[$planKey]): ?>
+                            <h4><?= $planHeading ?></h4>
+                            <ul class="plan-review-list">
+                                <?php foreach ($r[$planKey] as $tip): ?><li><?= htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') ?></li><?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <p class="plan-review-privacy">AI suggestions can be wrong. Check times, prices and opening hours yourself. Suggestions disappear after 30 minutes.</p>
+                    <form method="post" action="/customer/trips/plan_review.php" class="inline-form">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                        <input type="hidden" name="action" value="clear">
+                        <button type="submit" class="plan-review-clear">Clear suggestions</button>
+                    </form>
                 <?php endif; ?>
             </section>
             <?php endif; ?>
