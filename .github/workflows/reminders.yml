@@ -26,3 +26,15 @@ jobs:
           curl --fail --silent --show-error --max-time 90 --request POST \
             --header "X-Reminder-Key: $REMINDER_JOB_SECRET" \
             https://travelease-zp7o.onrender.com/jobs/reminders.php
+      - name: Remove retired private documents
+        if: always()
+        env:
+          REMINDER_JOB_SECRET: ${{ secrets.REMINDER_JOB_SECRET }}
+        run: |
+          if [ "${#REMINDER_JOB_SECRET}" -lt 32 ]; then
+            echo 'Set the REMINDER_JOB_SECRET repository secret before enabling this workflow.'
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 45 --request POST \
+            --header "X-Reminder-Key: $REMINDER_JOB_SECRET" \
+            https://travelease-zp7o.onrender.com/jobs/documents.php

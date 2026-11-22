@@ -94,6 +94,17 @@ $updated = 'November 22, 2026';
                 <li>Support staff see the support conversations passed to them and how many trips that customer is on. They see a trip's details and itinerary only if its owner shares it from an open support request, read-only and only until the owner stops sharing, the request is resolved or the trip changes owner. They never see comments, expenses, booking references, reminders or other members' identities, and cannot change trips.</li>
                 <li>Administrators can list user accounts, change roles and delete accounts.</li>
             </ul>
+            <h3>Private attachments</h3>
+            <p>
+                Travel-document attachments are stored in a private Supabase Storage bucket. They follow their booking
+                reference's visibility; every download checks current membership and permissions. Public share links,
+                support staff, administrators and the AI assistant do not receive these files. Allowed types are PDF,
+                JPEG and PNG up to 2 MB. File-type checks are not malware scanning; download only files you trust.
+                Removing an attachment, its reference, its trip or its uploader account immediately ends access through
+                TravelEase. The scheduled cleanup then removes the stored file, normally within a few minutes; outages
+                or delayed schedules can postpone physical deletion. Downloaded copies cannot be recalled.
+                Account exports include visible attachment metadata; download the files separately before deleting your account.
+            </p>
             <h3>Share links</h3>
             <p>
                 A trip's owner can create share links that last 1 or 7 days. Anyone who has a link can use it until it expires
@@ -165,6 +176,8 @@ $updated = 'November 22, 2026';
                 <dd>Hosts the TravelEase web application, in the United States.</dd>
                 <dt>Aiven</dt>
                 <dd>Hosts the MySQL database that stores the information described above, in the United States.</dd>
+                <dt>Supabase Storage</dt>
+                <dd>Stores uploaded travel-document files in a private bucket in the United States. Our PHP server sends and retrieves the files; your browser receives an authorized download from TravelEase, not a public storage link.</dd>
                 <dt>Groq</dt>
                 <dd>AI service for the support assistant, trip ideas and plan review (see the AI disclaimer).</dd>
                 <dt>Brevo</dt>
@@ -176,7 +189,7 @@ $updated = 'November 22, 2026';
                 <dt>OpenStreetMap and Leaflet</dt>
                 <dd>The Places &amp; map page loads the Leaflet map library from unpkg.com and map images from OpenStreetMap's tile servers. Your browser connects to them directly, so they receive your IP address and the map area you view. Directions links open OpenStreetMap in a new tab.</dd>
                 <dt>GitHub Actions</dt>
-                <dd>A scheduled job calls TravelEase about every five minutes to process due reminders. The call carries only a secret job key, not personal information.</dd>
+                <dd>A scheduled job calls TravelEase about every five minutes to process due reminders and remove retired document files. The calls carry only a secret job key, not personal information.</dd>
             </dl>
             <p>Each service handles information under its own terms and privacy policy.</p>
         </section>
