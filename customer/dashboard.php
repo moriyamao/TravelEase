@@ -3,10 +3,12 @@ require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 
 require_role(['customer']);
 
 $pdo = get_db_connection();
+$unreadNotifications = count_unread_notifications($pdo, current_user_id());
 
 // Ownership scoping: only ever fetch trips belonging to the logged-in
 // user. There is no code path here that accepts a user_id from the client.
@@ -88,6 +90,7 @@ $daysUntilNextTrip = $nextTrip
     <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261103-2">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">
+    <link rel="stylesheet" href="/assets/css/notifications.css">
 </head>
 <body>
     <main class="dashboard customer-home">
@@ -98,6 +101,7 @@ $daysUntilNextTrip = $nextTrip
             </a>
             <div class="header-actions">
                 <span class="welcome-text">Welcome, <?= $name ?></span>
+                <a href="/customer/notifications.php" class="logout-link">Notifications<?php if ($unreadNotifications > 0): ?><span class="notification-link-count" aria-label="<?= (int) $unreadNotifications ?> unread"><?= $unreadNotifications > 99 ? '99+' : (int) $unreadNotifications ?></span><?php endif; ?></a>
                 <a href="/profile.php" class="logout-link">Profile</a>
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
             </div>
@@ -261,7 +265,7 @@ $daysUntilNextTrip = $nextTrip
             </section>
         <?php endif; ?>
         <?php if ($pendingInvitations): ?>
-            <section class="journeys-section" aria-labelledby="pending-heading">
+            <section class="journeys-section" id="invitations" aria-labelledby="pending-heading">
                 <h2 id="pending-heading">Pending invitations</h2>
                 <?php foreach ($pendingInvitations as $invitation): ?>
                     <p><?= htmlspecialchars($invitation['name'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($invitation['destination'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars(ucfirst($invitation['role']), ENT_QUOTES, 'UTF-8') ?></p>

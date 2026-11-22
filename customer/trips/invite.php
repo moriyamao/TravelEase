@@ -123,6 +123,7 @@ try {
         'role' => $role, 'reopen_role' => $role,
     ]);
     log_trip_activity($pdo, $tripId, 'member_invited', null, TRIP_ROLE_LABELS[$role]);
+    notify_trip_invitation($pdo, $tripId, (int) $inviteeId);
     invite_redirect($pdo, 'trip_invite_notice', 'Invitation created. The recipient will see it on their dashboard.', $back);
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {

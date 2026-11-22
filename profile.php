@@ -111,12 +111,16 @@ $backLink = $dashboardByRole[current_user_role()] ?? '/public/index.php';
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/auth.css">
     <link rel="stylesheet" href="/assets/css/profile.css">
+    <link rel="stylesheet" href="/assets/css/notifications.css">
 </head>
 <body>
     <main class="dashboard">
         <header class="dashboard-header">
             <h1>Profile Settings</h1>
             <a href="<?= htmlspecialchars($backLink, ENT_QUOTES, 'UTF-8') ?>" class="logout-link">Back to Dashboard</a>
+            <?php if (current_user_role() === 'customer'): ?>
+            <a href="/customer/notifications.php#preferences" class="logout-link">Notification preferences</a>
+            <?php endif; ?>
         </header>
 
         <div class="form-card">

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     google_subject  VARCHAR(255)        NULL,
     role            ENUM('customer', 'staff', 'admin') NOT NULL DEFAULT 'customer',
     profile_picture VARCHAR(255)        NULL,
+    notify_in_app   TINYINT UNSIGNED NOT NULL DEFAULT 1 CHECK (notify_in_app IN (0, 1)),
     created_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP
                                          ON UPDATE CURRENT_TIMESTAMP,
@@ -327,4 +328,25 @@ CREATE TABLE IF NOT EXISTS trip_references (
     INDEX idx_trip_references_creator (created_by),
     CONSTRAINT fk_trip_references_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
     CONSTRAINT fk_trip_references_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    trip_id INT UNSIGNED NOT NULL,
+    event_type VARCHAR(40) NOT NULL,
+    activity_log_id BIGINT UNSIGNED NULL,
+    invitation_id INT UNSIGNED NULL,
+    invitation_issue_no INT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at DATETIME NULL,
+    dismissed_at DATETIME NULL,
+    UNIQUE KEY uq_notifications_activity (user_id, activity_log_id),
+    UNIQUE KEY uq_notifications_invitation (user_id, invitation_id, invitation_issue_no),
+    INDEX idx_notifications_inbox (user_id, dismissed_at, read_at, id),
+    INDEX idx_notifications_trip (trip_id),
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_activity FOREIGN KEY (activity_log_id) REFERENCES trip_activity_log(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_invitation FOREIGN KEY (invitation_id) REFERENCES trip_invitations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
