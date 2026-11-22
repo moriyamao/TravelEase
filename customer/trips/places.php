@@ -91,19 +91,20 @@ $categoryLabel = fn($c) => ITINERARY_CATEGORIES[$c ?? ''] ?? 'Uncategorized';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Places &amp; map — <?= $e($trip['name']) ?> — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/places.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Places &amp; map</h1>
-            <a href="/customer/trips/view.php?id=<?= (int) $tripId ?>" class="logout-link">Back to trip</a>
-        </header>
+    <?php $navCurrent = null; require __DIR__ . '/../../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <?php $tripId = (int) $tripId; $tripTab = 'places'; $tripPageTitle = 'Places & map'; $tripPageLead = null; require __DIR__ . '/../../includes/partials/trip_header.php'; ?>
 
         <p class="eyebrow"><?= $e($trip['name']) ?> &middot; <?= $e($trip['destination']) ?></p>
         <?php if ($notice): ?><p class="form-notice" role="status"><?= $e($notice) ?></p><?php endif; ?>

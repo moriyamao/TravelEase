@@ -35,18 +35,19 @@ unset($_SESSION['admin_errors']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Admin Dashboard — <?= $name ?></h1>
-            <div class="header-actions">
-                <a href="/profile.php" class="logout-link">Profile</a>
-                <a href="/auth/logout.php" class="logout-link">Sign out</a>
-            </div>
-        </header>
+    <?php $navCurrent = 'admin-home'; require __DIR__ . '/../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <div class="page-head">
+            <p class="eyebrow">Signed in as <?= $name ?></p>
+            <h1 class="page-title">User accounts</h1>
+        </div>
 
         <?php if (!empty($adminErrors)): ?>
             <ul class="form-errors" role="alert">

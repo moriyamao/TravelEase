@@ -30,20 +30,20 @@ $sharedCount = (int) ($counts['shared_count'] ?? 0);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Dashboard — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/support-access.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Staff Dashboard — <?= $name ?></h1>
-            <div class="header-actions">
-                <a href="/profile.php" class="logout-link">Profile</a>
-                <a href="/auth/logout.php" class="logout-link">Sign out</a>
-                <a href="/staff/escalations.php" class="logout-link">Support Queue</a>
-            </div>
-        </header>
+    <?php $navCurrent = 'staff-home'; require __DIR__ . '/../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <div class="page-head">
+            <p class="eyebrow">Signed in as <?= $name ?></p>
+            <h1 class="page-title">Staff dashboard</h1>
+        </div>
 
         <section class="support-card" aria-labelledby="queue-heading">
             <h2 id="queue-heading">Support queue</h2>

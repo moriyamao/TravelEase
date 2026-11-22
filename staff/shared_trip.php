@@ -55,16 +55,21 @@ $time = fn(?string $t) => $t === null ? null : substr($t, 0, 5);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shared trip — Support — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/support-access.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Shared trip</h1>
-            <a href="/staff/escalations.php" class="logout-link">Back to Support Queue</a>
-        </header>
+    <?php $navCurrent = 'queue'; require __DIR__ . '/../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/staff/escalations.php">Support queue</a> <span aria-hidden="true">/</span> <span aria-current="page">Shared trip</span></nav>
+        <div class="page-head">
+            <h1 class="page-title">Shared trip</h1>
+            <p class="section-lead">Read-only. The customer chose to share this trip with support.</p>
+        </div>
         <p class="support-note">Read-only. Shared by the trip owner for support request #<?= (int) $escalationId ?>. Access ends when they stop sharing or the request is resolved.</p>
 
         <section class="support-card" aria-labelledby="trip-heading">

@@ -46,7 +46,8 @@
 .share-page { box-sizing: border-box; width: 100%; max-width: 44rem; margin: 0 auto; padding: 1rem 16px 3rem; overflow-wrap: anywhere; }
 .share-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding-bottom: .8rem; border-bottom: 1px solid #ddd7ca; }
 .share-header a { color: #172b42; font-size: .9rem; font-weight: 700; }
-.share-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 1.3rem; font-weight: 700; }
+.share-brand { display: inline-flex; align-items: center; gap: .5rem; font-family: Georgia, 'Times New Roman', serif; font-size: 1.3rem; font-weight: 700; }
+.share-brand-accent { color: #bd4d28; }
 .share-panel { margin-top: 1.2rem; padding: clamp(1rem, 3vw, 1.6rem); border: 1px solid #ddd7ca; border-radius: 14px; background: #fffefb; }
 .share-panel[hidden], .share-status[hidden] { display: none; }
 .share-panel h1 { margin: .1rem 0 .3rem; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 5vw, 2.1rem); line-height: 1.2; }

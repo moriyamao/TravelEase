@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">TravelEase mark (for dark backgrounds)</title>
+  <desc id="desc">A smooth ease-in-out route curving from a starting point to a rust-red map pin, on a cream tile.</desc>
+  <rect width="512" height="512" rx="120" fill="#f6f2e8"/>
+  <path d="M112 388C236 388 238 252 352 252" fill="none" stroke="#152b43" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="112" cy="388" r="30" fill="#152b43"/>
+  <path d="M370 290C336 244 306 214 306 166a64 64 0 1 1 128 0c0 48-30 78-64 124Z" fill="#bd4d28"/>
+  <circle cx="370" cy="166" r="25" fill="#f6f2e8"/>
+</svg>

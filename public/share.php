@@ -63,7 +63,7 @@ if (is_logged_in()) {
 <body class="share-public">
     <main class="share-page">
         <header class="share-header">
-            <span class="share-brand">TravelEase</span>
+            <span class="share-brand"><svg class="share-brand-mark" viewBox="0 0 512 512" width="30" height="30" aria-hidden="true" focusable="false"><rect width="512" height="512" rx="120" fill="#152b43"/><path d="M112 388C236 388 238 252 352 252" fill="none" stroke="#f6f2e8" stroke-width="42" stroke-linecap="round"/><circle cx="112" cy="388" r="30" fill="#f6f2e8"/><path d="M370 290C336 244 306 214 306 166a64 64 0 1 1 128 0c0 48-30 78-64 124Z" fill="#bd4d28"/><circle cx="370" cy="166" r="25" fill="#f6f2e8"/></svg>Travel<span class="share-brand-accent">Ease</span></span>
             <a href="/public/information.php" target="_blank" rel="noopener noreferrer">About &amp; privacy</a>
         </header>
 

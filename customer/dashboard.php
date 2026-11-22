@@ -81,120 +81,141 @@ foreach ($trips as $trip) {
 $daysUntilNextTrip = $nextTrip
     ? max(0, (int) ((strtotime($nextTrip['start_date']) - strtotime($today)) / 86400))
     : null;
+$h = fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+// Presentation helpers only (no data access).
+$dateRange = function (string $start, string $end): string {
+    $s = strtotime($start);
+    $e = strtotime($end);
+    if (date('Y-m', $s) === date('Y-m', $e)) {
+        return date('M j', $s) . ' – ' . date('j, Y', $e);
+    }
+    return date('Y', $s) === date('Y', $e) ? date('M j', $s) . ' – ' . date('M j, Y', $e) : date('M j, Y', $s) . ' – ' . date('M j, Y', $e);
+};
+$tripDays = fn(string $start, string $end): int => (int) round((strtotime($end) - strtotime($start)) / 86400) + 1;
+$navCurrent = $showArchived ? 'archived' : 'trips';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Trips — TravelEase</title>
+    <title><?= $showArchived ? 'Archived trips' : 'My trips' ?> — TravelEase</title>
     <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261103-2">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">
     <link rel="stylesheet" href="/assets/css/notifications.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/home.css">
 </head>
-<body>
-    <main class="dashboard customer-home">
-        <header class="dashboard-header customer-header">
-            <a class="site-brand" href="/customer/dashboard.php" aria-label="TravelEase home">
-                <img src="/assets/images/travelease-logo-mark.svg" alt="">
-                <span><strong>TravelEase</strong><small>Personal travel desk</small></span>
-            </a>
-            <div class="header-actions">
-                <span class="welcome-text">Welcome, <?= $name ?></span>
-                <a href="/customer/notifications.php" class="logout-link">Notifications<?php if ($unreadNotifications > 0): ?><span class="notification-link-count" aria-label="<?= (int) $unreadNotifications ?> unread"><?= $unreadNotifications > 99 ? '99+' : (int) $unreadNotifications ?></span><?php endif; ?></a>
-                <a href="/profile.php" class="logout-link">Profile</a>
-                <a href="/auth/logout.php" class="logout-link">Sign out</a>
-            </div>
-        </header>
+<body class="app-body">
+    <?php require __DIR__ . '/../includes/partials/app_header.php'; ?>
 
+    <main class="app-page home" id="main-content" tabindex="-1">
         <?php if ($dashboardNotice): ?>
-            <p class="success-message" role="status"><?= htmlspecialchars($dashboardNotice, ENT_QUOTES, 'UTF-8') ?></p>
+            <p class="notice notice-success" role="status"><?= $h($dashboardNotice) ?></p>
         <?php endif; ?>
 
-        <?php foreach ($unreadReplies as $reply): ?>
-            <div class="support-reply-alert">
-                <div>
-                    <strong>Support replied to your request</strong>
-                    <p><?= nl2br(htmlspecialchars($reply['staff_reply'], ENT_QUOTES, 'UTF-8')) ?></p>
-                </div>
-                <form method="POST" action="/customer/dismiss_escalation_reply.php">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="escalation_id" value="<?= (int) $reply['id'] ?>">
-                    <button type="submit" class="link-danger">Dismiss</button>
-                </form>
-            </div>
-        <?php endforeach; ?>
-
-        <section class="customer-welcome" aria-labelledby="welcome-heading">
-            <div>
-                <p class="eyebrow">Your travel desk</p>
-                <h1 id="welcome-heading">Welcome back, <?= $name ?>.</h1>
-                <p>Keep every route, date, and travel detail together in one calm place.</p>
-            </div>
-            <a href="/customer/trips/create.php" class="btn-primary">+ Plan a trip</a>
-        </section>
-
-        <?php if ($nextTrip): ?>
-            <section class="travel-overview" aria-label="Upcoming trip overview">
-                <article class="featured-trip">
-                    <div class="featured-trip-content">
+        <?php if ($pendingInvitations || $unreadReplies): ?>
+            <section class="home-attention" aria-labelledby="attention-heading">
+                <h2 id="attention-heading" class="eyebrow">Needs your attention</h2>
+                <?php foreach ($pendingInvitations as $invitation): ?>
+                    <article class="attention-card" id="invitations">
                         <div>
-                            <p class="featured-label">Next journey</p>
-                            <h2><?= htmlspecialchars($nextTrip['name'], ENT_QUOTES, 'UTF-8') ?></h2>
-                            <p class="featured-destination">↗ <?= htmlspecialchars($nextTrip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
+                            <p class="attention-kind">Trip invitation</p>
+                            <p class="attention-title"><strong><?= $h($invitation['name']) ?></strong> <span class="muted">· <?= $h($invitation['destination']) ?></span></p>
+                            <p class="attention-detail">You're invited to join as <span class="chip chip-role"><?= $h(ucfirst($invitation['role'])) ?></span></p>
                         </div>
-                        <div class="featured-trip-footer">
-                            <div>
-                                <span>Travel dates</span>
-                                <strong>
-                                    <?= htmlspecialchars(date('M j', strtotime($nextTrip['start_date'])), ENT_QUOTES, 'UTF-8') ?>
-                                    —
-                                    <?= htmlspecialchars(date('M j, Y', strtotime($nextTrip['end_date'])), ENT_QUOTES, 'UTF-8') ?>
-                                </strong>
-                            </div>
-                            <a href="/customer/trips/view.php?id=<?= (int) $nextTrip['id'] ?>">Open trip →</a>
-                        </div>
-                    </div>
-                </article>
-
-                <div class="overview-side">
-                    <article class="countdown-card">
-                        <span>Departure countdown</span>
-                        <div><strong><?= $daysUntilNextTrip ?></strong><small><?= $daysUntilNextTrip === 1 ? 'day to go' : 'days to go' ?></small></div>
-                        <p>Your trip is currently <?= htmlspecialchars(strtolower($statusLabels[$nextTrip['status']] ?? $nextTrip['status']), ENT_QUOTES, 'UTF-8') ?>.</p>
+                        <form method="post" action="/customer/trips/respond_invitation.php" class="attention-actions">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="invitation_id" value="<?= (int) $invitation['id'] ?>">
+                            <input type="hidden" name="issue_no" value="<?= (int) $invitation['issue_no'] ?>">
+                            <button name="decision" value="accept" class="btn-primary btn-sm">Accept</button>
+                            <button name="decision" value="decline" class="btn-secondary btn-sm">Decline</button>
+                        </form>
                     </article>
-                    <div class="trip-stats" aria-label="Trip statistics">
-                        <div class="trip-stat"><strong><?= $statusCounts['planning'] ?></strong><span>Planning</span></div>
-                        <div class="trip-stat"><strong><?= $statusCounts['confirmed'] ?></strong><span>Confirmed</span></div>
-                        <div class="trip-stat"><strong><?= $statusCounts['completed'] ?></strong><span>Completed</span></div>
-                        <div class="trip-stat"><strong><?= $tripCount ?></strong><span>Total</span></div>
-                    </div>
-                </div>
+                <?php endforeach; ?>
+                <?php foreach ($unreadReplies as $reply): ?>
+                    <article class="attention-card attention-support">
+                        <div>
+                            <p class="attention-kind">Support reply</p>
+                            <p class="attention-title"><strong>Support replied to your request</strong></p>
+                            <p class="attention-detail"><?= nl2br($h($reply['staff_reply'])) ?></p>
+                        </div>
+                        <form method="POST" action="/customer/dismiss_escalation_reply.php" class="attention-actions">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="escalation_id" value="<?= (int) $reply['id'] ?>">
+                            <button type="submit" class="btn-ghost btn-sm">Dismiss</button>
+                        </form>
+                    </article>
+                <?php endforeach; ?>
             </section>
         <?php endif; ?>
 
-        <section class="journeys-section" aria-labelledby="journeys-heading">
-            <div class="journeys-heading-row">
+        <section class="home-welcome" aria-labelledby="welcome-heading">
+            <div>
+                <p class="eyebrow">Your travel desk</p>
+                <h1 id="welcome-heading"><?= $showArchived ? 'Archived trips' : 'Welcome back, ' . $name . '.' ?></h1>
+                <p class="section-lead"><?= $showArchived ? 'Trips you filed away. Archiving never deletes a trip, and you can restore it from its page.' : 'Every route, date and plan, kept together in one calm place.' ?></p>
+            </div>
+            <div class="home-welcome-actions">
+                <?php if (!$nextTrip): ?><button type="button" class="btn-secondary" id="dashboard-open-chat">Ask support</button><?php endif; ?>
+                <a href="/customer/trips/create.php" class="btn-primary"><span aria-hidden="true">+</span> Plan a trip</a>
+            </div>
+        </section>
+
+        <?php if ($nextTrip): ?>
+            <section class="home-overview" aria-label="Next trip">
+                <article class="next-trip">
+                    <div class="next-trip-main">
+                        <p class="next-trip-label">Next journey<span class="sr-only">, <?= $daysUntilNextTrip === 0 ? 'starts today' : 'in ' . $daysUntilNextTrip . ($daysUntilNextTrip === 1 ? ' day' : ' days') ?></span></p>
+                        <h2><?= $h($nextTrip['name']) ?></h2>
+                        <p class="next-trip-destination"><?= $h($nextTrip['destination']) ?></p>
+                    </div>
+                    <dl class="next-trip-facts">
+                        <div><dt>Dates</dt><dd><?= $h($dateRange($nextTrip['start_date'], $nextTrip['end_date'])) ?></dd></div>
+                        <div><dt>Length</dt><dd><?= $tripDays($nextTrip['start_date'], $nextTrip['end_date']) ?> days</dd></div>
+                        <div><dt>Status</dt><dd><?= $h($statusLabels[$nextTrip['status']] ?? $nextTrip['status']) ?></dd></div>
+                    </dl>
+                    <div class="next-trip-actions">
+                        <a class="btn-light" href="/customer/trips/view.php?id=<?= (int) $nextTrip['id'] ?>">Open trip <span aria-hidden="true">→</span></a>
+                        <a class="btn-outline-light" href="/customer/trips/expenses.php?id=<?= (int) $nextTrip['id'] ?>">Expenses</a>
+                    </div>
+                    <div class="next-trip-countdown" aria-hidden="true"><strong><?= $daysUntilNextTrip ?></strong><span><?= $daysUntilNextTrip === 1 ? 'day to go' : 'days to go' ?></span></div>
+                </article>
+
+                <aside class="home-stats" aria-label="Your trips by status">
+                    <div class="stat"><strong><?= $statusCounts['planning'] ?></strong><span>Planning</span></div>
+                    <div class="stat"><strong><?= $statusCounts['confirmed'] ?></strong><span>Confirmed</span></div>
+                    <div class="stat"><strong><?= $statusCounts['completed'] ?></strong><span>Completed</span></div>
+                    <div class="stat"><strong><?= $tripCount ?></strong><span>Trips you own</span></div>
+                    <button type="button" class="stat stat-action" id="dashboard-open-chat">
+                        <span class="stat-action-title">Need a hand?</span>
+                        <span>Ask TravelEase support <span aria-hidden="true">→</span></span>
+                    </button>
+                </aside>
+            </section>
+        <?php endif; ?>
+
+        <section class="home-journeys" aria-labelledby="journeys-heading">
+            <div class="journeys-toolbar">
                 <div>
-                    <h2 id="journeys-heading"><?= $showArchived ? 'Archived journeys' : 'Your journeys' ?></h2>
-                    <p>One place for every route, date, and plan.</p>
-                    <nav aria-label="Trip archive views">
-                        <a href="/customer/dashboard.php"<?= !$showArchived ? ' aria-current="page"' : '' ?>>Active trips</a>
-                        · <a href="/customer/dashboard.php?archived=1"<?= $showArchived ? ' aria-current="page"' : '' ?>>Archived trips</a>
+                    <h2 id="journeys-heading" class="section-title"><?= $showArchived ? 'Archived journeys' : 'Your journeys' ?></h2>
+                    <nav class="segmented" aria-label="Trip archive views">
+                        <a href="/customer/dashboard.php"<?= !$showArchived ? ' aria-current="page"' : '' ?>>Active</a>
+                        <a href="/customer/dashboard.php?archived=1"<?= $showArchived ? ' aria-current="page"' : '' ?>>Archived</a>
                     </nav>
                 </div>
                 <?php if ($trips || $sharedTrips): ?>
-                    <div class="trip-filter-bar">
+                    <div class="trip-filter-bar" role="search" aria-label="Filter trips">
                         <label class="sr-only" for="trip-search">Search trips</label>
                         <input type="search" id="trip-search" placeholder="Search trips or places">
                         <label class="sr-only" for="trip-status-filter">Filter by status</label>
                         <select id="trip-status-filter">
                             <option value="">All statuses</option>
                             <?php foreach ($statusLabels as $value => $label): ?>
-                                <option value="<?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+                                <option value="<?= $h($value) ?>"><?= $h($label) ?></option>
                             <?php endforeach; ?>
                         </select>
                         <label class="sr-only" for="trip-sort">Sort trips</label>
@@ -207,89 +228,62 @@ $daysUntilNextTrip = $nextTrip
                 <?php endif; ?>
             </div>
 
+            <h3 class="list-heading">Trips you own <span class="list-count"><?= $tripCount ?></span></h3>
             <?php if (empty($trips)): ?>
-                <div class="empty-state">
+                <div class="home-empty">
                     <img src="/assets/images/travelease-logo-mark.svg" alt="">
-                    <h2><?= $showArchived ? 'No archived trips you own.' : 'Your next journey starts here.' ?></h2>
+                    <h4><?= $showArchived ? 'No archived trips you own.' : 'Your next journey starts here.' ?></h4>
                     <p><?= $showArchived ? 'Archive a trip from its trip page. Archiving never deletes it.' : 'Create your first trip to organize destinations, dates, activities, and budget.' ?></p>
                     <?php if (!$showArchived): ?><a href="/customer/trips/create.php" class="btn-primary">Plan your first trip</a><?php endif; ?>
                 </div>
             <?php else: ?>
-                <div class="journeys-layout">
-                    <div class="trip-grid" id="trip-grid" data-trip-list>
-                        <?php foreach ($trips as $trip): ?>
-                            <a class="trip-card"
-                               href="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>"
-                               data-name="<?= htmlspecialchars(mb_strtolower($trip['name']), ENT_QUOTES, 'UTF-8') ?>"
-                               data-destination="<?= htmlspecialchars(mb_strtolower($trip['destination']), ENT_QUOTES, 'UTF-8') ?>"
-                               data-status="<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>"
-                               data-start="<?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>">
-                                <div class="trip-card-visual" aria-hidden="true"><span></span></div>
-                                <div class="trip-card-content">
-                                    <span class="status-badge status-<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-                                    <h2><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?></h2>
-                                    <p class="trip-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
-                                    <dl class="trip-card-dates">
-                                        <div><dt>Starts</dt><dd><?= htmlspecialchars(date('M j, Y', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?></dd></div>
-                                        <div><dt>Ends</dt><dd><?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?></dd></div>
-                                    </dl>
-                                </div>
-                                <span class="trip-card-arrow" aria-hidden="true">↗</span>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                    <aside class="quick-actions">
-                        <h3>Continue planning</h3>
-                        <p>Jump back into the tools already available in TravelEase.</p>
-                        <?php if ($nextTrip): ?>
-                            <a href="/customer/trips/view.php?id=<?= (int) $nextTrip['id'] ?>">Review itinerary <span>→</span></a>
-                            <a href="/customer/trips/view.php?id=<?= (int) $nextTrip['id'] ?>">Check travel budget <span>→</span></a>
-                        <?php endif; ?>
-                        <button type="button" id="dashboard-open-chat">Ask TravelEase support <span>→</span></button>
-                    </aside>
-                </div>
-            <?php endif; ?>
-            <p id="trip-no-results" hidden>No trips match your search.</p>
-        </section>
-
-        <?php if ($sharedTrips): ?>
-            <section class="journeys-section" aria-labelledby="shared-heading">
-                <h2 id="shared-heading"><?= $showArchived ? 'Archived shared trips' : 'Shared with you' ?></h2>
-                <div class="trip-grid" data-trip-list>
-                    <?php foreach ($sharedTrips as $sharedTrip): ?>
-                        <a class="trip-card" href="/customer/trips/view.php?id=<?= (int) $sharedTrip['id'] ?>"
-                           data-name="<?= htmlspecialchars(mb_strtolower($sharedTrip['name']), ENT_QUOTES, 'UTF-8') ?>"
-                           data-destination="<?= htmlspecialchars(mb_strtolower($sharedTrip['destination']), ENT_QUOTES, 'UTF-8') ?>"
-                           data-status="<?= htmlspecialchars($sharedTrip['status'], ENT_QUOTES, 'UTF-8') ?>"
-                           data-start="<?= htmlspecialchars($sharedTrip['start_date'], ENT_QUOTES, 'UTF-8') ?>">
-                            <div class="trip-card-content">
-                                <span class="status-badge"><?= htmlspecialchars(ucfirst($sharedTrip['role']), ENT_QUOTES, 'UTF-8') ?></span>
-                                <h3><?= htmlspecialchars($sharedTrip['name'], ENT_QUOTES, 'UTF-8') ?></h3>
-                                <p class="trip-destination"><?= htmlspecialchars($sharedTrip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
-                                <p><?= htmlspecialchars($sharedTrip['start_date'], ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars($sharedTrip['end_date'], ENT_QUOTES, 'UTF-8') ?></p>
+                <ul class="journey-list" data-trip-list>
+                    <?php foreach ($trips as $trip): ?>
+                        <?php $start = strtotime($trip['start_date']); ?>
+                        <li class="journey"
+                            data-name="<?= $h(mb_strtolower($trip['name'])) ?>"
+                            data-destination="<?= $h(mb_strtolower($trip['destination'])) ?>"
+                            data-status="<?= $h($trip['status']) ?>"
+                            data-start="<?= $h($trip['start_date']) ?>">
+                            <div class="journey-date journey-<?= $h($trip['status']) ?>" aria-hidden="true">
+                                <span><?= $h(date('M', $start)) ?></span><strong><?= $h(date('j', $start)) ?></strong><small><?= $h(date('Y', $start)) ?></small>
                             </div>
-                        </a>
+                            <div class="journey-body">
+                                <h4><a class="journey-link" href="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>"><?= $h($trip['name']) ?></a></h4>
+                                <p class="journey-destination"><?= $h($trip['destination']) ?></p>
+                                <p class="journey-meta"><span><?= $h($dateRange($trip['start_date'], $trip['end_date'])) ?></span><span><?= $tripDays($trip['start_date'], $trip['end_date']) ?> days</span></p>
+                            </div>
+                            <span class="chip chip-status-<?= $h($trip['status']) ?>"><?= $h($statusLabels[$trip['status']] ?? $trip['status']) ?></span>
+                        </li>
                     <?php endforeach; ?>
-                </div>
-            </section>
-        <?php endif; ?>
-        <?php if ($pendingInvitations): ?>
-            <section class="journeys-section" id="invitations" aria-labelledby="pending-heading">
-                <h2 id="pending-heading">Pending invitations</h2>
-                <?php foreach ($pendingInvitations as $invitation): ?>
-                    <p><?= htmlspecialchars($invitation['name'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($invitation['destination'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars(ucfirst($invitation['role']), ENT_QUOTES, 'UTF-8') ?></p>
-                    <form method="post" action="/customer/trips/respond_invitation.php">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="invitation_id" value="<?= (int) $invitation['id'] ?>">
-                        <input type="hidden" name="issue_no" value="<?= (int) $invitation['issue_no'] ?>">
-                        <button name="decision" value="accept">Accept</button>
-                        <button name="decision" value="decline">Decline</button>
-                    </form>
-                <?php endforeach; ?>
-            </section>
-        <?php endif; ?>
+                </ul>
+            <?php endif; ?>
+
+            <?php if ($sharedTrips): ?>
+                <h3 class="list-heading" id="shared-heading"><?= $showArchived ? 'Archived shared trips' : 'Shared with you' ?> <span class="list-count"><?= count($sharedTrips) ?></span></h3>
+                <ul class="journey-list" data-trip-list aria-labelledby="shared-heading">
+                    <?php foreach ($sharedTrips as $sharedTrip): ?>
+                        <?php $start = strtotime($sharedTrip['start_date']); ?>
+                        <li class="journey"
+                            data-name="<?= $h(mb_strtolower($sharedTrip['name'])) ?>"
+                            data-destination="<?= $h(mb_strtolower($sharedTrip['destination'])) ?>"
+                            data-status="<?= $h($sharedTrip['status']) ?>"
+                            data-start="<?= $h($sharedTrip['start_date']) ?>">
+                            <div class="journey-date journey-<?= $h($sharedTrip['status']) ?>" aria-hidden="true">
+                                <span><?= $h(date('M', $start)) ?></span><strong><?= $h(date('j', $start)) ?></strong><small><?= $h(date('Y', $start)) ?></small>
+                            </div>
+                            <div class="journey-body">
+                                <h4><a class="journey-link" href="/customer/trips/view.php?id=<?= (int) $sharedTrip['id'] ?>"><?= $h($sharedTrip['name']) ?></a></h4>
+                                <p class="journey-destination"><?= $h($sharedTrip['destination']) ?></p>
+                                <p class="journey-meta"><span><?= $h($dateRange($sharedTrip['start_date'], $sharedTrip['end_date'])) ?></span><span>Your role: <?= $h(ucfirst($sharedTrip['role'])) ?></span></p>
+                            </div>
+                            <span class="chip chip-status-<?= $h($sharedTrip['status']) ?>"><?= $h($statusLabels[$sharedTrip['status']] ?? $sharedTrip['status']) ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <p id="trip-no-results" class="home-no-results" role="status" hidden>No trips match your search.</p>
+        </section>
     </main>
 
     <?php require __DIR__ . '/../includes/partials/chat_widget.php'; ?>
@@ -297,7 +291,8 @@ $daysUntilNextTrip = $nextTrip
 
     <script>
         (function () {
-            const cards = Array.from(document.querySelectorAll('[data-trip-list] .trip-card'));
+            const lists = Array.from(document.querySelectorAll('[data-trip-list]'));
+            const cards = lists.flatMap((list) => Array.from(list.querySelectorAll('.journey')));
             const dashboardChatButton = document.getElementById('dashboard-open-chat');
 
             if (dashboardChatButton) {
@@ -327,18 +322,19 @@ $daysUntilNextTrip = $nextTrip
                 });
 
                 noResults.hidden = visibleCount !== 0;
-                noResults.style.display = visibleCount === 0 ? 'block' : 'none';
             }
 
             function applySort() {
                 const sortBy = sortSelect.value;
-                const sorted = [...cards].sort((a, b) => {
-                    if (sortBy === 'date-asc') return a.dataset.start.localeCompare(b.dataset.start);
-                    if (sortBy === 'date-desc') return b.dataset.start.localeCompare(a.dataset.start);
-                    if (sortBy === 'name-asc') return a.dataset.name.localeCompare(b.dataset.name);
-                    return 0;
+                lists.forEach((list) => {
+                    const sorted = Array.from(list.querySelectorAll('.journey')).sort((a, b) => {
+                        if (sortBy === 'date-asc') return a.dataset.start.localeCompare(b.dataset.start);
+                        if (sortBy === 'date-desc') return b.dataset.start.localeCompare(a.dataset.start);
+                        if (sortBy === 'name-asc') return a.dataset.name.localeCompare(b.dataset.name);
+                        return 0;
+                    });
+                    sorted.forEach((card) => list.appendChild(card));
                 });
-                sorted.forEach((card) => card.parentElement.appendChild(card));
             }
 
             searchInput.addEventListener('input', applyFilters);
