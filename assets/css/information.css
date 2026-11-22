@@ -1,0 +1,20 @@
+/* Public information page (FR-36) */
+body { margin: 0; background: var(--paper, #f7f3ec); color: var(--ink); }
+.info-page { box-sizing: border-box; max-width: 760px; margin: 2rem auto 3rem; padding: clamp(1.25rem, 4vw, 2.75rem); background: var(--paper-white); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow-wrap: anywhere; }
+.info-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin-bottom: 1.5rem; font-size: .9rem; }
+.info-header a { color: var(--stamp-dark); font-weight: 700; }
+.info-brand { font-family: 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
+.info-page h1 { margin: 0; font-size: clamp(1.6rem, 5vw, 2.3rem); line-height: 1.1; }
+.info-updated { margin: .5rem 0 1.2rem; color: var(--ink-muted); font-size: .8rem; }
+.info-lead { font-size: .98rem; line-height: 1.65; }
+.info-toc { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.2rem 0 .5rem; }
+.info-toc a { padding: .3rem .75rem; border: 1px solid var(--line-dark); border-radius: 999px; color: var(--ink); font-size: .82rem; font-weight: 700; text-decoration: none; }
+.info-page section { padding-top: 1.2rem; margin-top: 1.4rem; border-top: 1px dashed var(--line-dark); scroll-margin-top: 1rem; }
+.info-page h2 { margin: 0 0 .4rem; font-size: 1.35rem; }
+.info-page h3 { margin: 1.1rem 0 .3rem; font-size: 1rem; }
+.info-page p, .info-page li, .info-page dd { color: var(--ink-muted); font-size: .93rem; line-height: 1.65; }
+.info-page ul { padding-left: 1.2rem; }
+.info-page a { color: var(--stamp-dark); }
+.info-services dt { margin-top: .8rem; font-weight: 700; color: var(--ink); }
+.info-services dd { margin: .15rem 0 0; }
+@media (max-width: 600px) { .info-page { margin: 0; border-radius: 0; border-left: 0; border-right: 0; } }

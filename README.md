@@ -22,8 +22,8 @@ This is a Mapúa University academic team project. The repository has progressed
 | Profiles | Profile editing and validated profile-picture uploads |
 | Support | AI support widget, escalation queue, customer/staff message threads, staff replies and resolution |
 | Staff | Read-only trip oversight, support dashboard and escalation handling |
-| Administration | User listing, role updates, and account deletion |
-| Information | Public Terms and Privacy pages, AI disclaimer |
+| Administration | User listing, role updates, and account deletion. Admins cannot change or delete their own account, and each change locks the acting and target accounts and re-checks that the acting account is still an admin, so two admins acting on each other at once can never leave the app without an administrator (FR-33) |
+| Information | Public information page at `/public/information.php` (FR-36): terms of use, privacy, AI disclaimer and third-party services in plain language, linked from sign-in, registration and profile. It is informational, not a legal contract; data export and self-service account deletion (FR-34) are not implemented and are handled manually on request |
 
 TravelEase is a planner with support tools. It does not process payments, reserve flights or hotels, or connect to third-party booking inventory. A trip's status is an internal planning field, not proof of a supplier reservation.
 

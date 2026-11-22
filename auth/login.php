@@ -112,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Don't have an account? <a href="/auth/register.php">Create account</a>
         </p>
         <p class="auth-alt-action"><a href="/auth/resend_verification.php">Resend verification email</a></p>
+        <p class="auth-alt-action"><a href="/public/information.php">Terms, privacy, AI and services</a></p>
 
         <div class="auth-divider"><span>or</span></div>
 

@@ -118,6 +118,7 @@ $backLink = $dashboardByRole[current_user_role()] ?? '/public/index.php';
         <header class="dashboard-header">
             <h1>Profile Settings</h1>
             <a href="<?= htmlspecialchars($backLink, ENT_QUOTES, 'UTF-8') ?>" class="logout-link">Back to Dashboard</a>
+            <a href="/public/information.php" class="logout-link">Terms &amp; privacy</a>
             <?php if (current_user_role() === 'customer'): ?>
             <a href="/customer/notifications.php#preferences" class="logout-link">Notification preferences</a>
             <?php endif; ?>
