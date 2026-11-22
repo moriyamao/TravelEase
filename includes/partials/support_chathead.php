@@ -26,6 +26,7 @@ $__openEscalation = $stmt->fetch();
             <span>Your Support Request</span>
             <button id="te-support-close" type="button" aria-label="Close">&times;</button>
         </div>
+        <p class="te-support-share"><a href="/customer/support_access.php">Share a trip with support</a> (optional, read-only)</p>
         <div id="te-support-messages" class="te-chat-messages"></div>
         <form id="te-support-form" class="te-chat-form">
             <?= csrf_field() ?>

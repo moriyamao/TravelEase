@@ -21,7 +21,7 @@ This is a Mapúa University academic team project. The repository has progressed
 | Notifications (FR-30, event slice) | Customer inbox with read/unread, dismiss/restore and an in-app opt-out. Invitations notify the invitee once per issue; role, comment, itinerary, place and expense updates notify other current customer members. Inbox visibility and unread counts follow current membership; private reference events are excluded. Removed members see only a generic access-removal message. Scheduled reminders and email notifications are not implemented. |
 | Profiles | Profile editing and validated profile-picture uploads |
 | Support | AI support widget, escalation queue, customer/staff message threads, staff replies and resolution |
-| Staff | Read-only trip oversight, support dashboard and escalation handling |
+| Staff | Support queue and escalation handling. Staff see how many trips a customer is on; a trip's details and itinerary are visible read-only only after its owner shares it from an open support request, until they stop sharing, the request is resolved or ownership changes (FR-32) |
 | Administration | User listing, role updates, and account deletion. Admins cannot change or delete their own account, and each change locks the acting and target accounts and re-checks that the acting account is still an admin, so two admins acting on each other at once can never leave the app without an administrator (FR-33) |
 | Information | Public information page at `/public/information.php` (FR-36): terms of use, privacy, AI disclaimer and third-party services in plain language, linked from sign-in, registration and profile. It is informational, not a legal contract; data export and self-service account deletion (FR-34) are not implemented and are handled manually on request |
 
@@ -75,9 +75,10 @@ Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`
    mysql -u root -p travelease < database/migration_007_add_escalations.sql
    mysql -u root -p travelease < database/migration_008_add_escalation_replies.sql
    mysql -u root -p travelease < database/migration_009_add_escalation_messages.sql
+   mysql -u root -p travelease < database/migration_024_add_support_trip_shares.sql
    ```
 
-   Replace `travelease` if using a different database name. The base schema includes Google subject, email verification, trips, trip memberships and invitations, profile picture, itinerary, and budget fields; it does **not** include the support tables. For an existing installation, inspect its schema and apply only missing migrations in numerical order. Do not blindly rerun `ALTER TABLE` or message-backfill migrations.
+   Replace `travelease` if using a different database name. The base schema includes Google subject, email verification, trips, trip memberships and invitations, profile picture, itinerary, and budget fields; it does **not** include the support tables (migrations 007-009 and the support trip sharing table in 024). For an existing installation, inspect its schema and apply only missing migrations in numerical order. Do not blindly rerun `ALTER TABLE` or message-backfill migrations.
 
 4. Ensure `uploads/profile_pictures/` exists and is writable by PHP for profile uploads.
 5. Start the development server **from the repository root**:
@@ -141,6 +142,7 @@ Useful smoke checks for a new environment include login/logout, denied customer 
 
 - The included `Dockerfile` serves the project root through PHP/Apache and reads Render's `PORT` at startup. Supply database and integration settings through the hosting environment.
 - Before deploying booking references and progress to an existing database, apply `database/migration_021_add_trip_references.sql` once. Fresh installs already include this table in `schema.sql`; do not run 021 on top of that schema. FR-24 attachments/downloads still require private object storage. FR-25 reminders require the scheduler setup above.
+- Before deploying support trip sharing (FR-32) to an existing database, apply `database/migration_024_add_support_trip_shares.sql` once after 023. It creates `support_trip_shares`, which references the support `escalations` table, so it is not part of `schema.sql`; fresh installs run it after migrations 007-009.
 - Before deploying notifications to an existing database, apply `database/migration_022_add_notifications.sql` once after 021. It adds `users.notify_in_app` and `notifications`; both are already in the fresh schema. Existing history is not backfilled into notifications.
 - Protect configuration, environment files, SQL files, and internal documents from direct HTTP access when serving the repository root. Do not treat the development server or the current container configuration as a complete production hardening baseline.
 - Uploaded profile pictures use local storage. Render's ephemeral filesystem can discard them on restart/redeploy; durable storage requires a persistent disk or external object storage.

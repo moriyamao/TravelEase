@@ -44,6 +44,8 @@ const TRIP_ACTIVITY_EVENTS = [
     'reference_added'       => '{actor} added a booking reference',
     'reference_updated'     => '{actor} updated a booking reference',
     'reference_deleted'     => '{actor} removed a booking reference',
+    'support_access_shared'  => '{actor} shared this trip with TravelEase support',
+    'support_access_revoked' => '{actor} stopped sharing this trip with TravelEase support',
 ];
 
 const TRIP_ROLE_LABELS = [

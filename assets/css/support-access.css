@@ -1,0 +1,23 @@
+/* Support trip sharing (FR-32): customer sharing page, staff dashboard and shared-trip view */
+.support-card { margin-top: 1.2rem; padding: clamp(1.1rem, 2.5vw, 1.6rem); border: 1px solid var(--line); border-radius: 14px; background: rgba(255,254,251,.62); overflow-wrap: anywhere; }
+.support-card h2 { margin: 0 0 .5rem; }
+.support-card p { color: var(--ink-muted); line-height: 1.6; }
+.support-note, .support-trip-meta { color: var(--ink-muted); font-size: .85rem; margin: .2rem 0 0; }
+.support-trip-list, .support-itinerary { margin: .4rem 0 0; padding: 0; list-style: none; }
+.support-trip-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding: .8rem 0; border-bottom: 1px solid var(--line); }
+.support-trip-list form { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 0; }
+.support-trip-meta { display: block; }
+.support-shared { padding: .1rem .5rem; border: 1px solid var(--stamp); border-radius: 999px; color: var(--stamp-dark); font-size: .75rem; font-weight: 700; }
+.support-button, .support-button-secondary { display: inline-block; padding: .55rem .95rem; border-radius: 8px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.support-button { border: 1px solid var(--stamp); background: var(--stamp); color: #fff; }
+.support-button-secondary { border: 1px solid var(--line-dark); background: var(--paper-white); color: var(--ink); }
+.support-details { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .5rem 0 0; }
+.support-details dt { font-weight: 700; }
+.support-details dd { margin: 0; color: var(--ink-muted); }
+.support-day { margin: 1rem 0 .3rem; font-size: .95rem; }
+.support-itinerary li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: .3rem .8rem; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+.support-time { font-family: 'DM Mono', monospace; font-size: .8rem; color: var(--stamp-dark); }
+.support-notes { margin: .3rem 0 0; font-size: .85rem; color: var(--ink-muted); }
+.form-notice { padding: .6rem .8rem; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper-white); }
+.dashboard-header { flex-wrap: wrap; row-gap: .5rem; }
+@media (max-width: 600px) { .support-itinerary li { grid-template-columns: 1fr; } }

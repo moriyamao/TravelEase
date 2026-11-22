@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/support_access.php';
 
 require_role(['staff', 'admin']);
 
@@ -17,7 +18,7 @@ $pdo = get_db_connection();
 
 $stmt = $pdo->prepare('
     SELECT
-        e.id, e.status, e.created_at, e.resolved_at,
+        e.id, e.user_id, e.status, e.created_at, e.resolved_at,
         u.name AS customer_name, u.email AS customer_email
     FROM escalations e
     JOIN users u ON u.id = e.user_id
@@ -55,6 +56,10 @@ $escalations = $stmt->fetchAll();
         .view-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
         .view-tabs a { padding: 0.4rem 0.9rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; color: var(--ink-muted); border: 1px solid var(--line); }
         .view-tabs a.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+        .escalation-trip-context { margin-bottom: 0.75rem; padding: 0.6rem 0.8rem; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.85rem; color: var(--ink-muted); }
+        .escalation-trip-context p, .escalation-trip-context ul { margin: 0; }
+        .escalation-trip-context ul { margin-top: 0.4rem; padding-left: 1.1rem; }
+        .escalation-trip-context a { color: var(--stamp-dark); font-weight: 700; }
     </style>
 </head>
 <body>
@@ -62,7 +67,7 @@ $escalations = $stmt->fetchAll();
         <header class="dashboard-header">
             <h1>Support Queue — <?= $name ?></h1>
             <div class="header-actions">
-                <a href="/staff/dashboard.php" class="logout-link">Trips</a>
+                <a href="/staff/dashboard.php" class="logout-link">Dashboard</a>
                 <a href="/profile.php" class="logout-link">Profile</a>
                 <a href="/auth/logout.php" class="logout-link">Sign out</a>
             </div>
@@ -104,6 +109,17 @@ $escalations = $stmt->fetchAll();
                     </div>
                 </div>
                 <div class="escalation-thread" id="thread-<?= (int) $item['id'] ?>">
+                    <?php $tripCount = customer_trip_count($pdo, (int) $item['user_id']); $shares = $item['status'] === 'open' ? viewable_support_shares($pdo, (int) $item['id']) : []; ?>
+                    <div class="escalation-trip-context">
+                        <p>Customer is on <?= $tripCount ?> trip<?= $tripCount === 1 ? '' : 's' ?>. Trip details are hidden unless the owner shares a trip from this request.</p>
+                        <?php if ($shares): ?>
+                            <ul>
+                                <?php foreach ($shares as $share): ?>
+                                    <li><a href="/staff/shared_trip.php?escalation_id=<?= (int) $item['id'] ?>&amp;trip_id=<?= (int) $share['trip_id'] ?>"><?= htmlspecialchars($share['name'], ENT_QUOTES, 'UTF-8') ?></a> &middot; shared trip (read-only)</li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
                     <div class="escalation-messages" id="messages-<?= (int) $item['id'] ?>">
                         <p style="color: var(--ink-muted);">Loading...</p>
                     </div>

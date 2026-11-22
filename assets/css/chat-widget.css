@@ -134,4 +134,5 @@
 .te-chat-disclaimer a {
     color: var(--stamp, #C1440E);
     text-decoration: underline;
-}
+}.te-support-share { margin: 0; padding: .45rem .8rem; border-bottom: 1px solid var(--line); font-size: .78rem; color: var(--ink-muted); }
+.te-support-share a { color: var(--route, #2F7A5C); font-weight: 700; }

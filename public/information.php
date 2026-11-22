@@ -91,7 +91,7 @@ $updated = 'November 22, 2026';
             <ul>
                 <li>Trip members see a trip's shared content according to their role, as described above.</li>
                 <li>Personal reminders are visible only to the person they belong to, not even the trip owner.</li>
-                <li>Support staff see a read-only list of trips (name, destination, dates, status and the owner's name and email) and the support conversations passed to them. They cannot see itineraries, expenses, booking references or reminders, and cannot change trips.</li>
+                <li>Support staff see the support conversations passed to them and how many trips that customer is on. They see a trip's details and itinerary only if its owner shares it from an open support request, read-only and only until the owner stops sharing, the request is resolved or the trip changes owner. They never see comments, expenses, booking references, reminders or other members' identities, and cannot change trips.</li>
                 <li>Administrators can list user accounts, change roles and delete accounts.</li>
             </ul>
             <h3>Cookies</h3>

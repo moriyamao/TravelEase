@@ -24,8 +24,8 @@ $__chatUserEmail = $_SESSION['user_email'] ?? '';
         </form>
         <p class="te-chat-disclaimer">
             AI can make mistakes. By using our chatbot, you agree to our
-            <a href="/terms.php" target="_blank" rel="noopener">Terms</a> and
-            <a href="/privacy.php" target="_blank" rel="noopener">Privacy Policy</a>.
+            <a href="/public/information.php#terms" target="_blank" rel="noopener">Terms</a> and
+            <a href="/public/information.php#privacy" target="_blank" rel="noopener">Privacy Policy</a>.
         </p>
     </div>
 </div>
