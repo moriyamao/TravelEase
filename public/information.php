@@ -94,6 +94,21 @@ $updated = 'November 22, 2026';
                 <li>Support staff see the support conversations passed to them and how many trips that customer is on. They see a trip's details and itinerary only if its owner shares it from an open support request, read-only and only until the owner stops sharing, the request is resolved or the trip changes owner. They never see comments, expenses, booking references, reminders or other members' identities, and cannot change trips.</li>
                 <li>Administrators can list user accounts, change roles and delete accounts.</li>
             </ul>
+            <h3>Share links</h3>
+            <p>
+                A trip's owner can create share links that last 1 or 7 days. Anyone who has a link can use it until it expires
+                or the owner revokes it. Transferring the trip's ownership or removing a member also revokes all of that trip's
+                links. A <strong>view-only link</strong> shows, without signing in, the destination, the trip dates, the time zone
+                and each activity's date, times, title and location. It never shows the trip name, notes, costs, budgets,
+                comments, votes, members, booking references or reminders. A <strong>join link</strong> shows the destination and
+                dates, and lets a signed-in, verified customer join the trip as a Viewer after confirming.
+            </p>
+            <p>
+                The secret part of a link sits after the <code>#</code>, which browsers don't send to the server, so it stays out
+                of server logs. Only a scrambled (hashed) copy is stored, so TravelEase can't show a link again after it is
+                created. The share page loads nothing from other sites and asks browsers and search engines not to keep or
+                index it. To limit guessing, each network can open share links only a limited number of times per minute.
+            </p>
             <h3>Cookies</h3>
             <p>
                 TravelEase uses one session cookie to keep you signed in. It ends when you close your browser and cannot be read by

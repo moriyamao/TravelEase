@@ -1,0 +1,69 @@
+/* Trip share links (FR-15): owner management page and the public landing page.
+   The public page loads only this file (no tokens.css, which imports web fonts),
+   so every colour has a fallback and the public page uses system fonts. */
+
+/* ---- Owner management page (loaded after tokens/dashboard/trips) ---- */
+.dashboard-header { flex-wrap: wrap; row-gap: .5rem; }
+.share-trip-name { margin: .2rem 0 0; color: var(--ink-muted, #6f706b); font-weight: 700; overflow-wrap: anywhere; }
+.share-card { margin-top: 1.2rem; padding: clamp(1.1rem, 2.5vw, 1.6rem); border: 1px solid var(--line, #ddd7ca); border-radius: 14px; background: rgba(255, 254, 251, .62); overflow-wrap: anywhere; }
+.share-card h2 { margin: 0 0 .5rem; }
+.share-card p, .share-facts { color: var(--ink-muted, #6f706b); line-height: 1.6; }
+.share-facts { margin: .3rem 0 0; padding-left: 1.2rem; }
+.share-facts li + li { margin-top: .35rem; }
+.share-facts strong, .share-card p strong { color: var(--ink, #172b42); }
+.share-new { border-color: var(--route, #24745b); background: var(--route-soft, #e3f0e9); }
+.share-copy { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
+.share-copy input { flex: 1 1 16rem; min-width: 0; padding: .55rem .7rem; border: 1px solid var(--line-dark, #c6bdaa); border-radius: 8px; background: var(--paper-white, #fffefb); font-family: 'DM Mono', ui-monospace, monospace; font-size: .8rem; color: var(--ink, #172b42); }
+.share-copy-status:empty { display: none; }
+.share-meta { display: block; color: var(--ink-muted, #6f706b); font-size: .85rem; margin: .2rem 0 0; }
+.share-form { display: grid; gap: .6rem; justify-items: start; }
+.share-form fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: .35rem; }
+.share-form legend, .share-form > label { font-weight: 700; margin-bottom: .2rem; color: var(--ink, #172b42); }
+.share-form select { padding: .45rem .6rem; border: 1px solid var(--line-dark, #c6bdaa); border-radius: 8px; background: var(--paper-white, #fffefb); font: inherit; }
+.share-choice { display: flex; align-items: flex-start; gap: .5rem; font-weight: 400; color: var(--ink, #172b42); }
+.share-choice input { margin-top: .25rem; flex: none; }
+.share-warning { padding: .7rem .9rem; border: 1px solid #e3b7b0; border-radius: 8px; background: var(--caution-bg, #fbeae5); }
+.share-warning p { margin: 0 0 .5rem; color: var(--caution, #b13c32); }
+.share-warning[hidden] { display: none; }
+.share-list { margin: .4rem 0 0; padding: 0; list-style: none; }
+.share-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding: .8rem 0; border-bottom: 1px solid var(--line, #ddd7ca); }
+.share-list form { margin: 0; }
+.share-button, .share-button-secondary { display: inline-block; padding: .55rem .95rem; border-radius: 8px; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.share-button { border: 1px solid var(--stamp, #bd4d28); background: var(--stamp, #bd4d28); color: #fff; }
+.share-button-secondary { border: 1px solid var(--line-dark, #c6bdaa); background: var(--paper-white, #fffefb); color: var(--ink, #172b42); }
+.share-button[hidden] { display: none; }
+.form-notice { padding: .6rem .8rem; border: 1px solid var(--line-dark, #c6bdaa); border-radius: 8px; background: var(--paper-white, #fffefb); }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- Public landing page ---- */
+.share-public {
+    margin: 0;
+    background: #f6f3eb;
+    color: #172b42;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+}
+.share-page { box-sizing: border-box; width: 100%; max-width: 44rem; margin: 0 auto; padding: 1rem 16px 3rem; overflow-wrap: anywhere; }
+.share-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding-bottom: .8rem; border-bottom: 1px solid #ddd7ca; }
+.share-header a { color: #172b42; font-size: .9rem; font-weight: 700; }
+.share-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 1.3rem; font-weight: 700; }
+.share-panel { margin-top: 1.2rem; padding: clamp(1rem, 3vw, 1.6rem); border: 1px solid #ddd7ca; border-radius: 14px; background: #fffefb; }
+.share-panel[hidden], .share-status[hidden] { display: none; }
+.share-panel h1 { margin: .1rem 0 .3rem; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 5vw, 2.1rem); line-height: 1.2; }
+.share-eyebrow { margin: 0; color: #933818; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.share-dates { margin: 0; font-weight: 600; }
+.share-zone, .share-note { margin: .2rem 0 0; color: #6f706b; font-size: .88rem; }
+.share-status { margin: 1.2rem 0 0; padding: .7rem .9rem; border: 1px solid #c6bdaa; border-radius: 8px; background: #fffefb; }
+.share-error { color: #b13c32; }
+.share-status.share-error { border-color: #e3b7b0; background: #fbeae5; }
+.share-day { margin: 1.2rem 0 .3rem; font-size: 1rem; }
+.share-itinerary { margin: 0; padding: 0; list-style: none; }
+.share-itinerary li { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .2rem .8rem; padding: .55rem 0; border-bottom: 1px solid #ddd7ca; }
+.share-time { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .82rem; color: #933818; }
+.share-location { display: block; color: #6f706b; font-size: .88rem; }
+.share-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.share-public .share-button-secondary { background: #fffefb; }
+.share-public form { margin: .8rem 0 0; }
+@media (max-width: 480px) {
+    .share-itinerary li { grid-template-columns: 1fr; }
+}
