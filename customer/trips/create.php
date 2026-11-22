@@ -24,6 +24,7 @@ $values = [
     'name' => '', 'destination' => '', 'start_date' => '', 'end_date' => '',
     'status' => 'planning', 'budget_currency' => 'PHP', 'budget_amount' => '',
     'notes' => '', 'interests' => '', 'pace' => 'balanced',
+    'time_zone' => 'Asia/Manila',
 ];
 // Drafts stay in this customer's session, independently for each planning tab.
 $drafts = $_SESSION['trip_planning_drafts'] ?? [];
@@ -37,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $draftId = is_string($_POST['draft_id'] ?? null) ? $_POST['draft_id'] : '';
     $draft = $_SESSION['trip_planning_drafts'][$draftId] ?? null;
     if ($draft) {
-        $values = $draft['values'];
+        // Drafts saved before trip time zones existed fall back to the default.
+        $values = $draft['values'] + ['time_zone' => 'Asia/Manila'];
         $ideas = $draft['ideas'];
     }
     // Preserve typed details on a failed validation or expired CSRF token.
@@ -55,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             validate_trip_dates($values['start_date'], $values['end_date']),
             validate_trip_status($values['status']),
             validate_trip_currency($values['budget_currency']),
+            validate_trip_timezone($values['time_zone']),
             validate_money_amount($values['budget_amount'], 'Budget'),
             validate_trip_notes($values['notes']),
         ] as $error) {
@@ -119,8 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $pdo->beginTransaction();
                     $stmt = $pdo->prepare(
-                        'INSERT INTO trips (user_id, name, destination, start_date, end_date, status, budget_currency, budget_amount, notes)
-                         VALUES (:user_id, :name, :destination, :start_date, :end_date, :status, :budget_currency, :budget_amount, :notes)'
+                        'INSERT INTO trips (user_id, name, destination, start_date, end_date, status, budget_currency, budget_amount, notes, time_zone)
+                         VALUES (:user_id, :name, :destination, :start_date, :end_date, :status, :budget_currency, :budget_amount, :notes, :time_zone)'
                     );
                     $stmt->execute([
                         'user_id' => current_user_id(), 'name' => $values['name'], 'destination' => $values['destination'],
@@ -128,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'budget_currency' => $values['budget_currency'],
                         'budget_amount' => $values['budget_amount'] !== '' ? $values['budget_amount'] : null,
                         'notes' => $values['notes'] !== '' ? $values['notes'] : null,
+                        'time_zone' => $values['time_zone'],
                     ]);
                     $tripId = (int) $pdo->lastInsertId();
                     $stmt = $pdo->prepare(
@@ -224,6 +228,9 @@ $dayCount = $values['start_date'] && $values['end_date'] && !validate_trip_dates
                         <div><label for="budget_currency">Currency</label><select id="budget_currency" name="budget_currency"><?php foreach (TRIP_ALLOWED_CURRENCIES as $code): ?><option <?= $values['budget_currency'] === $code ? 'selected' : '' ?>><?= $code ?></option><?php endforeach; ?></select></div>
                         <div><label for="budget_amount">Trip budget <span>(optional)</span></label><input inputmode="decimal" id="budget_amount" name="budget_amount" placeholder="Your total budget" value="<?= plan_escape($values['budget_amount']) ?>"></div>
                     </div>
+                    <label for="time_zone">Trip time zone</label>
+                    <select id="time_zone" name="time_zone" aria-describedby="time-zone-help"><?php foreach (DateTimeZone::listIdentifiers() as $zone): ?><option value="<?= htmlspecialchars($zone, ENT_QUOTES, 'UTF-8') ?>" <?= $values['time_zone'] === $zone ? 'selected' : '' ?>><?= htmlspecialchars(str_replace('_', ' ', $zone), ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?></select>
+                    <small id="time-zone-help">Reminder times for this trip use this zone. You can change it later.</small>
                     <div class="planning-divider"></div>
                     <h3>A trip that feels like you</h3>
                     <label for="interests">What would you love to do?</label>

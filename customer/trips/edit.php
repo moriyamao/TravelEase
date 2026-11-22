@@ -24,7 +24,7 @@ function load_owned_trip(PDO $pdo, int $tripId, int $userId): ?array
 {
     $stmt = $pdo->prepare(
         'SELECT id, name, destination, start_date, end_date, status,
-                budget_currency, budget_amount, notes
+                budget_currency, budget_amount, notes, time_zone
          FROM trips
          WHERE id = :id AND user_id = :user_id
          LIMIT 1'
@@ -49,6 +49,7 @@ $status      = $trip['status'];
 $currency    = $trip['budget_currency'];
 $budget      = $trip['budget_amount'] !== null ? (string) $trip['budget_amount'] : '';
 $notes       = $trip['notes'] ?? '';
+$timeZone    = $trip['time_zone'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -63,6 +64,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currency    = trim($_POST['budget_currency'] ?? 'PHP');
         $budget      = trim($_POST['budget_amount'] ?? '');
         $notes       = trim($_POST['notes'] ?? '');
+        // An older form without the time zone field keeps the current zone (resolved under the lock).
+        $postedZone  = array_key_exists('time_zone', $_POST) ? (is_string($_POST['time_zone']) ? trim($_POST['time_zone']) : "") : null;
+        if ($postedZone !== null) $timeZone = $postedZone;
 
         if ($err = validate_trip_name($name))               $errors[] = $err;
         if ($err = validate_trip_destination($destination))  $errors[] = $err;
@@ -71,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($err = validate_trip_currency($currency))        $errors[] = $err;
         if ($err = validate_money_amount($budget, 'Budget')) $errors[] = $err;
         if ($err = validate_trip_notes($notes))              $errors[] = $err;
+        if ($postedZone !== null && ($err = validate_trip_timezone($postedZone))) $errors[] = $err;
 
         if (empty($errors)) {
             try {
@@ -87,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     http_response_code(404);
                     die('Trip not found.');
                 }
+                $timeZone = $postedZone ?? $current['time_zone'];
 
                 if ($startDate !== $current['start_date'] || $endDate !== $current['end_date']) {
                     // A locking read sees activities committed while this
@@ -111,7 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      SET name = :name, destination = :destination,
                          start_date = :start_date, end_date = :end_date,
                          status = :status, budget_currency = :budget_currency,
-                         budget_amount = :budget_amount, notes = :notes
+                         budget_amount = :budget_amount, notes = :notes,
+                         time_zone = :time_zone
                      WHERE id = :id AND user_id = :user_id'
                 );
                 $stmt->execute([
@@ -123,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'budget_currency' => $currency,
                     'budget_amount'   => $budget !== '' ? $budget : null,
                     'notes'           => $notes !== '' ? $notes : null,
+                    'time_zone'       => $timeZone,
                     'id'              => $tripId,
                     'user_id'         => current_user_id(),
                 ]);
@@ -137,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     [$current['start_date'] . '/' . $current['end_date'], $startDate . '/' . $endDate, 'dates'],
                     [$current['status'], $status, 'status'],
                     [$current['budget_currency'], $currency, 'currency'],
+                    [$current['time_zone'], $timeZone, 'time zone'],
                     [$lf($current['notes'] ?? ''), $lf($notes), 'notes'],
                 ];
                 foreach ($comparisons as [$old, $new, $label]) {
@@ -248,6 +257,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                value="<?= htmlspecialchars($budget, ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                 </div>
+
+                <label for="time_zone">Trip time zone</label>
+                <select id="time_zone" name="time_zone" aria-describedby="time-zone-help"><?php foreach (DateTimeZone::listIdentifiers() as $zone): ?><option value="<?= htmlspecialchars($zone, ENT_QUOTES, 'UTF-8') ?>" <?= $timeZone === $zone ? 'selected' : '' ?>><?= htmlspecialchars(str_replace('_', ' ', $zone), ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?></select>
+                <small id="time-zone-help">Automatic reminders that have not been sent move with a new zone. Custom reminders keep the moment you saved; only how they are shown changes.</small>
 
                 <label for="notes">Notes (optional)</label>
                 <textarea id="notes" name="notes" rows="4" maxlength="5000"><?= htmlspecialchars($notes, ENT_QUOTES, 'UTF-8') ?></textarea>

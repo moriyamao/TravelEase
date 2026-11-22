@@ -113,6 +113,22 @@ If any value is missing or Brevo rejects the request, no email is sent, the unus
 
 **Email notifications:** The current `assets/js/chat-widget.js` contains project-specific EmailJS public configuration. Configure your own EmailJS service/template and allowed origins for another deployment. Email notification and in-app escalation storage are separate operations; success in one does not prove the other succeeded.
 
+### Scheduled trip reminders
+
+Apply `database/migration_023_add_trip_reminders.sql` after migration 022 and before deploying this feature. Fresh installs already include it in `schema.sql`. Existing trips default to `Asia/Manila`; owners can choose another IANA time zone in the trip form. Review that default for trips elsewhere. Custom reminders retain their saved UTC instant when the zone changes; pending automatic reminders follow the activity's current local time and trip zone.
+
+Customers manage their own reminders from **Trip > Reminders**, including viewers and commenters. Automatic reminders are generated for timed, incomplete activities in the next 48 hours, due 30 minutes before the activity. Personal reminders are private even from the trip owner. Due reminders can be acknowledged, and the trip's reminder progress counts only the current user's due, uncancelled reminders.
+
+The worker uses the existing Brevo settings for optional email. Email reminders default off; customers opt in under **Notifications > Preferences**. Notification text and email omit reminder titles and booking details. Cancelled/completed trips, former members, staff and completed activities do not receive new deliveries. An email already handed to the provider may still arrive after cancellation. Failed or uncertain emails are not retried automatically; the customer can explicitly retry after 60 seconds, up to three total attempts. An uncertain retry can duplicate a delayed email.
+
+Production setup (no new paid service):
+
+1. Generate a random secret of at least 32 characters. Set the same `REMINDER_JOB_SECRET` in Render's Environment and GitHub **Settings > Secrets and variables > Actions > New repository secret**. Keep the value out of source, logs and chat.
+2. After migration and deployment, run **Actions > Deliver trip reminders > Run workflow**. Check its JSON result and the customer's Notifications/Reminders pages. The workflow POSTs to `/jobs/reminders.php` with an `X-Reminder-Key` header; unauthorized requests cannot process reminders.
+3. The workflow runs every five minutes. GitHub schedules can be delayed and public-repository schedules can be disabled after 60 days without repository activity. Render cold starts also delay delivery: this is best-effort processing, not an exact-time alarm. Standard GitHub-hosted runners are free for this public repository; reassess billing if its visibility changes.
+
+Each worker invocation is bounded to 100 due candidates and three email attempts, with a database advisory lock preventing concurrent runs. Large backlogs drain over later runs. `php jobs/reminders.php --dry-run` counts existing due reminders without creating rows or sending mail; it still requires the correct database configuration. Tests may point the existing `BREVO_API_URL` override at a local fake endpoint; leave it unset in production.
+
 ## Security and testing
 
 The source includes password hashing, PDO prepared statements, server-side validation, CSRF checks, session regeneration, role guards, and customer ownership checks. Session permissions are refreshed against the database so role changes or account deletion can take effect on subsequent requests. These are implemented controls, not a claim that the application has passed an independent security audit.
@@ -124,7 +140,7 @@ Useful smoke checks for a new environment include login/logout, denied customer 
 ## Deployment and limitations
 
 - The included `Dockerfile` serves the project root through PHP/Apache and reads Render's `PORT` at startup. Supply database and integration settings through the hosting environment.
-- Before deploying booking references and progress to an existing database, apply `database/migration_021_add_trip_references.sql` once. Fresh installs already include this table in `schema.sql`; do not run 021 on top of that schema. FR-24 attachments/downloads and FR-25 reminders still require private object storage and scheduled processing.
+- Before deploying booking references and progress to an existing database, apply `database/migration_021_add_trip_references.sql` once. Fresh installs already include this table in `schema.sql`; do not run 021 on top of that schema. FR-24 attachments/downloads still require private object storage. FR-25 reminders require the scheduler setup above.
 - Before deploying notifications to an existing database, apply `database/migration_022_add_notifications.sql` once after 021. It adds `users.notify_in_app` and `notifications`; both are already in the fresh schema. Existing history is not backfilled into notifications.
 - Protect configuration, environment files, SQL files, and internal documents from direct HTTP access when serving the repository root. Do not treat the development server or the current container configuration as a complete production hardening baseline.
 - Uploaded profile pictures use local storage. Render's ephemeral filesystem can discard them on restart/redeploy; durable storage requires a persistent disk or external object storage.

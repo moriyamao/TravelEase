@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
     role            ENUM('customer', 'staff', 'admin') NOT NULL DEFAULT 'customer',
     profile_picture VARCHAR(255)        NULL,
     notify_in_app   TINYINT UNSIGNED NOT NULL DEFAULT 1 CHECK (notify_in_app IN (0, 1)),
+    notify_email    TINYINT UNSIGNED NOT NULL DEFAULT 0 CHECK (notify_email IN (0, 1)),
     created_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP
                                          ON UPDATE CURRENT_TIMESTAMP,
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS trips (
     destination     VARCHAR(150)        NOT NULL,
     start_date      DATE                NOT NULL,
     end_date        DATE                NOT NULL,
+    time_zone       VARCHAR(64)         NOT NULL DEFAULT 'Asia/Manila',
     status          ENUM('planning', 'confirmed', 'completed', 'cancelled')
                                          NOT NULL DEFAULT 'planning',
     budget_currency CHAR(3)             NOT NULL DEFAULT 'PHP',
@@ -330,6 +332,31 @@ CREATE TABLE IF NOT EXISTS trip_references (
     CONSTRAINT fk_trip_references_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS trip_reminders (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trip_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    itinerary_item_id INT UNSIGNED NULL,
+    title VARCHAR(150) NOT NULL,
+    due_at DATETIME NOT NULL,
+    activity_start_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    acknowledged_at DATETIME NULL,
+    cancelled_at DATETIME NULL,
+    in_app_processed_at DATETIME NULL,
+    in_app_delivered_at DATETIME NULL,
+    email_status ENUM('pending','unknown','sent','failed','skipped') NOT NULL DEFAULT 'pending',
+    email_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    email_attempted_at DATETIME NULL,
+    version INT UNSIGNED NOT NULL DEFAULT 1,
+    UNIQUE KEY uq_reminders_activity_user (itinerary_item_id, user_id),
+    INDEX idx_reminders_trip_user (trip_id, user_id, due_at),
+    INDEX idx_reminders_due (cancelled_at, acknowledged_at, due_at),
+    CONSTRAINT fk_reminders_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reminders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reminders_activity FOREIGN KEY (itinerary_item_id) REFERENCES itinerary_items(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NOT NULL,
@@ -338,15 +365,18 @@ CREATE TABLE IF NOT EXISTS notifications (
     activity_log_id BIGINT UNSIGNED NULL,
     invitation_id INT UNSIGNED NULL,
     invitation_issue_no INT UNSIGNED NULL,
+    reminder_id BIGINT UNSIGNED NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     read_at DATETIME NULL,
     dismissed_at DATETIME NULL,
     UNIQUE KEY uq_notifications_activity (user_id, activity_log_id),
     UNIQUE KEY uq_notifications_invitation (user_id, invitation_id, invitation_issue_no),
+    UNIQUE KEY uq_notifications_reminder (user_id, reminder_id),
     INDEX idx_notifications_inbox (user_id, dismissed_at, read_at, id),
     INDEX idx_notifications_trip (trip_id),
     CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_notifications_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
     CONSTRAINT fk_notifications_activity FOREIGN KEY (activity_log_id) REFERENCES trip_activity_log(id) ON DELETE CASCADE,
-    CONSTRAINT fk_notifications_invitation FOREIGN KEY (invitation_id) REFERENCES trip_invitations(id) ON DELETE CASCADE
+    CONSTRAINT fk_notifications_invitation FOREIGN KEY (invitation_id) REFERENCES trip_invitations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_reminder FOREIGN KEY (reminder_id) REFERENCES trip_reminders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
