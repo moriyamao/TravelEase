@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/admin_validation.php';
 
 require_role(['admin']);
 
@@ -38,13 +39,31 @@ try {
     // ON DELETE CASCADE on trips.user_id (and itinerary_items.trip_id
     // in turn) takes care of the user's trips and itinerary items --
     // no separate cleanup queries needed here.
+    $pdo->beginTransaction();
+    $roles = lock_admin_action_rows($pdo, current_user_id(), $targetUserId);
+    if (($roles[current_user_id()] ?? null) !== 'admin') {
+        // Demoted or deleted by another admin since signing in.
+        $pdo->rollBack();
+        http_response_code(403);
+        die('Your administrator access has changed. Please sign in again.');
+    }
+    if (!isset($roles[$targetUserId])) {
+        $pdo->rollBack();
+        $_SESSION['admin_errors'] = ['That account no longer exists.'];
+        header('Location: /admin/dashboard.php');
+        exit;
+    }
     $stmt = $pdo->prepare('DELETE FROM users WHERE id = :id');
     $stmt->execute(['id' => $targetUserId]);
+    $pdo->commit();
 
     header('Location: /admin/dashboard.php');
     exit;
 
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('TravelEase: admin user delete failed: ' . $e->getMessage());
     $_SESSION['admin_errors'] = ['Something went wrong while deleting the account. Please try again.'];
     header('Location: /admin/dashboard.php');

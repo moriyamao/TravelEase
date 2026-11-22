@@ -120,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p class="auth-alt-action">
             Already have an account? <a href="/auth/login.php">Sign in</a>
         </p>
+        <p class="auth-alt-action">How TravelEase handles your information: <a href="/public/information.php">terms, privacy, AI and services</a></p>
     </main>
 </body>
 </html>
