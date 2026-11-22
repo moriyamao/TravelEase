@@ -147,7 +147,7 @@ $updated = 'November 22, 2026';
                 <dt>Google Sign-In</dt>
                 <dd>Optional sign-in. Google confirms your account and shares your name, email address and Google account ID with TravelEase.</dd>
                 <dt>Geoapify</dt>
-                <dd>Place and nearby search. It receives only the search text you type, or a saved place's coordinates for a nearby search, from our server. Trip notes and member details are not sent.</dd>
+                <dd>Place search, nearby search and travel-time estimates. It receives only the search text you type, a saved place's coordinates for a nearby search, or two saved places' coordinates when a member checks travel times, from our server. Trip notes, activity titles and member details are not sent.</dd>
                 <dt>OpenStreetMap and Leaflet</dt>
                 <dd>The Places &amp; map page loads the Leaflet map library from unpkg.com and map images from OpenStreetMap's tile servers. Your browser connects to them directly, so they receive your IP address and the map area you view. Directions links open OpenStreetMap in a new tab.</dd>
                 <dt>GitHub Actions</dt>

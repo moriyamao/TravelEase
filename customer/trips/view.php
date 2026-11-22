@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../includes/trip_recommendations.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_schedule.php';
+require_once __DIR__ . '/../../includes/travel_time.php';
 require_once __DIR__ . '/../../includes/trip_references.php';
 require_once __DIR__ . '/../../includes/trip_progress.php';
 
@@ -147,6 +148,15 @@ if (array_sum(array_column($items, 'comment_count')) > 0) {
 // FR-20: non-blocking schedule warnings (overlaps, activities outside the
 // trip dates), computed from the rows above with no extra query.
 $scheduleWarnings = itinerary_schedule_warnings($items, $trip['start_date'], $trip['end_date']);
+// FR-20 travel time: cached driving estimates only; no provider call on page load.
+$travelPairs = itinerary_travel_pairs($items);
+$travelEstimates = cached_travel_estimates($pdo, $travelPairs);
+foreach (itinerary_travel_warnings($travelPairs, $travelEstimates) as $warnedId => $travelWarnings) {
+    $scheduleWarnings[$warnedId] = array_merge($scheduleWarnings[$warnedId] ?? [], $travelWarnings);
+}
+$uncheckedTravel = count(unchecked_travel_pairs($travelPairs, $travelEstimates));
+$travelNotice = $_SESSION['travel_notice'][$tripId] ?? null;
+unset($_SESSION['travel_notice'][$tripId]);
 $itemTitles = array_column($items, 'title', 'id');
 
 // Group items by date for the day-by-day display.
@@ -308,6 +318,17 @@ $statusLabels = [
                 </ul>
             <?php endif; ?>
 
+            <?php if ($travelNotice): ?>
+                <p class="travel-notice" role="status"><?= htmlspecialchars($travelNotice, ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
+            <?php if ($uncheckedTravel > 0): ?>
+                <form method="post" action="/customer/trips/travel_check.php" class="travel-check">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                    <span><?= $uncheckedTravel === 1 ? '1 pair of back-to-back activities at different places has' : $uncheckedTravel . ' pairs of back-to-back activities at different places have' ?> not been checked for travel time.</span>
+                    <button type="submit">Check travel times</button>
+                </form>
+            <?php endif; ?>
             <?php if ($scheduleWarnings): ?>
                 <p class="schedule-summary" role="status"><?= count($scheduleWarnings) === 1 ? '1 activity has a schedule warning.' : count($scheduleWarnings) . ' activities have schedule warnings.' ?> Warnings do not block saving.</p>
             <?php endif; ?>
@@ -352,6 +373,8 @@ $statusLabels = [
                                                     <li>Outside the trip dates. Move it to a day within the trip.</li>
                                                 <?php elseif ($warning['type'] === 'overlap'): ?>
                                                     <li>Overlaps with &ldquo;<?= htmlspecialchars((string) ($itemTitles[$warning['other_id']] ?? 'another activity'), ENT_QUOTES, 'UTF-8') ?>&rdquo; (<?= htmlspecialchars($warning['other_start'] . '–' . $warning['other_end'], ENT_QUOTES, 'UTF-8') ?>)</li>
+                                                <?php elseif ($warning['type'] === 'travel'): ?>
+                                                    <li>Driving from &ldquo;<?= htmlspecialchars((string) ($itemTitles[$warning['other_id']] ?? 'the previous activity'), ENT_QUOTES, 'UTF-8') ?>&rdquo; takes about <?= (int) $warning['travel_minutes'] ?> min, but there <?= (int) $warning['gap_minutes'] === 1 ? 'is only 1 minute' : 'are only ' . (int) $warning['gap_minutes'] . ' min' ?> between them. Estimate only; actual travel may differ.</li>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
                                         </ul>

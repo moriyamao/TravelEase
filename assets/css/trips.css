@@ -101,3 +101,7 @@
 .schedule-summary { margin: 0 0 1rem; padding: .55rem .8rem; border: 1px solid var(--caution); border-radius: 8px; color: var(--ink); font-size: .85rem; }
 .itinerary-warnings { margin: .35rem 0 0; padding: 0; list-style: none; }
 .itinerary-warnings li { margin-top: .2rem; padding-left: .55rem; border-left: 3px solid var(--caution); color: var(--ink); font-size: .8rem; overflow-wrap: anywhere; }
+/* FR-20 travel-time checks */
+.travel-check { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin: 0 0 1rem; padding: .55rem .8rem; border: 1px dashed var(--line-dark); border-radius: 8px; font-size: .85rem; color: var(--ink-muted); }
+.travel-check button { padding: .35rem .8rem; border: 1px solid var(--stamp); border-radius: 6px; background: var(--paper-white); color: var(--stamp-dark); font-weight: 700; cursor: pointer; }
+.travel-notice { margin: 0 0 1rem; padding: .55rem .8rem; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper-white); font-size: .85rem; }
