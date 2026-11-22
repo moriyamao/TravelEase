@@ -8,8 +8,6 @@
     const EMAILJS_SERVICE_ID  = 'service_28hg6ip';
     const EMAILJS_TEMPLATE_ID = 'template_t4gn02v';
 
-    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-
     const widget   = document.getElementById('te-chat-widget');
     const toggle   = document.getElementById('te-chat-toggle');
     const panel    = document.getElementById('te-chat-panel');
@@ -40,24 +38,24 @@
         messages.scrollTop = messages.scrollHeight;
     }
 
-    function escalateToSupport(userMessage) {
-        if (!userEmail) {
-            addMessage("I can't reach support without an email on your account — please update your profile.", 'bot');
-            return;
-        }
+    async function escalateToSupport(userMessage) {
+        // The server has committed the conversation before returning escalate=true.
+        addMessage('Your message is saved in your support conversation. Refresh this page to open it and read staff replies.', 'bot');
+        if (!userEmail || !window.emailjs) return;
 
-        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-            title:   'Chatbot escalation',
-            name:    userName,
-            email:   userEmail,
-            time:    new Date().toLocaleString(),
-            message: userMessage,
-        }).then(() => {
-            addMessage("I've sent this to our support team — they'll reply to your email directly.", 'bot');
-        }).catch((err) => {
-            console.error('EmailJS send failed:', err);
-            addMessage("I couldn't reach support automatically — please email us directly for now.", 'bot');
-        });
+        try {
+            window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+            await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                title:   'Chatbot escalation',
+                name:    userName,
+                email:   userEmail,
+                time:    new Date().toLocaleString(),
+                message: userMessage,
+            });
+        } catch (err) {
+            // Email is optional; the saved conversation remains available to staff.
+            console.error('Optional EmailJS notification failed:', err);
+        }
     }
 
     form.addEventListener('submit', async (e) => {
@@ -83,6 +81,7 @@
 
             if (!res.ok) {
                 addMessage(data.error || 'Something went wrong. Please try again.', 'bot');
+                input.value = message;
                 return;
             }
 
@@ -94,6 +93,7 @@
         } catch (err) {
             console.error('Chat request failed:', err);
             addMessage("I'm having trouble connecting right now. Please try again in a moment.", 'bot');
+            input.value = message;
         } finally {
             input.disabled = false;
             input.focus();

@@ -57,10 +57,8 @@ if (mb_strlen($message) > 1000) {
 
 $result = ask_ai($message);
 
-// Record the escalation in-app so staff have a real queue to work
-// from, not just an email in Mori's inbox. The EmailJS send (client
-// side, in chat-widget.js) still happens independently -- this is a
-// second, in-app record of the same event, not a replacement.
+// Commit the support conversation before acknowledging the handoff.
+// The client may also send an optional EmailJS notification after success.
 //
 // If the customer already has an open escalation, fold this message
 // into that existing thread rather than opening a second, parallel
@@ -68,11 +66,18 @@ $result = ask_ai($message);
 // in two places at once just because the AI separately decided to
 // escalate something.
 if ($result['escalate']) {
+    $pdo = null;
     try {
         $pdo = get_db_connection();
+        $pdo->beginTransaction();
+
+        // Serialize this account's escalations even when no open thread exists.
+        $stmt = $pdo->prepare('SELECT id FROM users WHERE id = :user_id FOR UPDATE');
+        $stmt->execute(['user_id' => current_user_id()]);
+        $stmt->fetchColumn();
 
         $stmt = $pdo->prepare(
-            'SELECT id FROM escalations WHERE user_id = :user_id AND status = "open" ORDER BY created_at DESC LIMIT 1'
+            'SELECT id FROM escalations WHERE user_id = :user_id AND status = \'open\' ORDER BY created_at DESC LIMIT 1 FOR UPDATE'
         );
         $stmt->execute(['user_id' => current_user_id()]);
         $existing = $stmt->fetch();
@@ -92,18 +97,23 @@ if ($result['escalate']) {
 
         $stmt = $pdo->prepare(
             'INSERT INTO escalation_messages (escalation_id, sender_type, sender_id, message)
-             VALUES (:id, "customer", :sender_id, :message)'
+             VALUES (:id, \'customer\', :sender_id, :message)'
         );
         $stmt->execute([
             'id'        => $escalationId,
             'sender_id' => current_user_id(),
             'message'   => $message,
         ]);
+        $pdo->commit();
     } catch (PDOException $e) {
-        // Don't fail the whole chat response if this insert fails --
-        // the customer still gets their reply and the email still
-        // sends; we just log it for later investigation.
+        if ($pdo !== null && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('TravelEase: failed to record escalation: ' . $e->getMessage());
+        http_response_code(503);
+        header('Retry-After: 5');
+        echo json_encode(['error' => 'Your support message could not be saved. Please try again in a moment.']);
+        exit;
     }
 }
 

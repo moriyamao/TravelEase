@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/csrf.php';
 
-require_role(['customer']);
+require_login();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
     http_response_code(405);
@@ -20,6 +20,11 @@ if (!in_array($action, ['read', 'unread', 'dismiss', 'restore', 'preferences'], 
     http_response_code(400);
     exit('Choose a valid notification action.');
 }
+if ($action !== 'preferences') {
+    require_role(['customer']);
+}
+$returnToProfile = $action === 'preferences'
+    && (current_user_role() !== 'customer' || ($_POST['return_to'] ?? null) === 'profile');
 $pdo = get_db_connection();
 $userId = (int) current_user_id();
 unset($_SESSION['notification_notice'], $_SESSION['notification_error']);
@@ -27,12 +32,11 @@ try {
     if ($action === 'preferences') {
         $enabled = $_POST['enabled'] ?? null;
         if (!in_array($enabled, ['0', '1'], true)) {
-            http_response_code(400);
-            exit('Choose whether to receive in-app notifications.');
+            throw new InvalidArgumentException('Choose whether to receive in-app notifications.');
         }
         $emailEnabled = $_POST['email_enabled'] ?? null;
         if ($emailEnabled !== null && !in_array($emailEnabled, ['0', '1'], true)) {
-            http_response_code(400); exit('Choose whether to receive reminder emails.');
+            throw new InvalidArgumentException('Choose whether to receive reminder emails.');
         }
         $stmt = $pdo->prepare('UPDATE users SET notify_in_app = :enabled, notify_email = COALESCE(:email_enabled, notify_email) WHERE id = :id');
         $stmt->execute(['enabled' => (int) $enabled, 'email_enabled' => $emailEnabled, 'id' => $userId]);
@@ -65,12 +69,22 @@ try {
         $pdo->commit();
         $_SESSION['notification_notice'] = 'Notification updated.';
     }
+} catch (InvalidArgumentException $e) {
+    if (!$returnToProfile) {
+        http_response_code(400);
+        exit($e->getMessage());
+    }
+    $_SESSION['notification_error'] = $e->getMessage();
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
     error_log('TravelEase: notification action failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     $_SESSION['notification_error'] = 'Could not update notifications. Please try again.';
+}
+if ($returnToProfile) {
+    header('Location: /profile.php#notification-preferences');
+    exit;
 }
 $filter = $_POST['filter'] ?? 'unread';
 if (!in_array($filter, ['all', 'unread', 'dismissed'], true)) {
