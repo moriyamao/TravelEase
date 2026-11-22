@@ -274,3 +274,57 @@ CREATE TABLE IF NOT EXISTS place_lookup_cache (
     expires_at DATETIME NOT NULL,
     INDEX idx_place_lookup_cache_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- FR-22/23. Amounts use the app's two-decimal convention.
+-- Payer and traveler identities are snapshots retained with the trip.
+CREATE TABLE IF NOT EXISTS trip_expenses (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trip_id INT UNSIGNED NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    category ENUM('sightseeing','food','transport','lodging','activity','shopping','other') NOT NULL,
+    currency CHAR(3) NOT NULL,
+    amount_minor BIGINT UNSIGNED NOT NULL CHECK (amount_minor BETWEEN 1 AND 9999999999),
+    payer_id INT UNSIGNED NOT NULL,
+    payer_name VARCHAR(100) NOT NULL,
+    split_mode ENUM('equal','custom') NOT NULL,
+    receipt_url VARCHAR(2048) NULL,
+    version INT UNSIGNED NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_trip_expenses_trip (trip_id, id),
+    CONSTRAINT fk_trip_expenses_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS trip_expense_shares (
+    expense_id INT UNSIGNED NOT NULL,
+    traveler_id INT UNSIGNED NOT NULL,
+    traveler_name VARCHAR(100) NOT NULL,
+    amount_minor BIGINT UNSIGNED NOT NULL CHECK (amount_minor BETWEEN 1 AND 9999999999),
+    settled_at DATETIME NULL,
+    PRIMARY KEY (expense_id, traveler_id),
+    CONSTRAINT fk_expense_shares_expense FOREIGN KEY (expense_id) REFERENCES trip_expenses(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- FR-24 booking-reference metadata. Attachments require private object storage
+-- and are not part of this migration. Private references follow the canonical
+-- owner, not the historical owner membership row.
+CREATE TABLE IF NOT EXISTS trip_references (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trip_id INT UNSIGNED NOT NULL,
+    created_by INT UNSIGNED NULL,
+    title VARCHAR(150) NOT NULL,
+    kind ENUM('booking','transport','lodging','activity','other') NOT NULL,
+    provider VARCHAR(100) NULL,
+    confirmation_code VARCHAR(150) NULL,
+    start_date DATE NULL,
+    end_date DATE NULL,
+    reference_url VARCHAR(2048) NULL,
+    status ENUM('pending','confirmed') NOT NULL DEFAULT 'pending',
+    visibility ENUM('members','editors','private') NOT NULL DEFAULT 'private',
+    version INT UNSIGNED NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_trip_references_trip (trip_id, id),
+    INDEX idx_trip_references_creator (created_by),
+    CONSTRAINT fk_trip_references_trip FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_trip_references_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

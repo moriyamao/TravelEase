@@ -36,6 +36,13 @@ const TRIP_ACTIVITY_EVENTS = [
     'place_deleted'         => '{actor} removed the place "{details}"',
     'place_linked'          => '{actor} linked a place to "{details}"',
     'place_unlinked'        => '{actor} unlinked the place from "{details}"',
+    'expense_added'         => '{actor} recorded the expense "{details}"',
+    'expense_removed'       => '{actor} removed the expense "{details}"',
+    'expense_share_settled' => '{actor} marked a share of "{details}" as settled',
+    'expense_share_reopened' => '{actor} reopened a share of "{details}"',
+    'reference_added'       => '{actor} added a booking reference',
+    'reference_updated'     => '{actor} updated a booking reference',
+    'reference_deleted'     => '{actor} removed a booking reference',
 ];
 
 const TRIP_ROLE_LABELS = [

@@ -7,6 +7,8 @@ require_once __DIR__ . '/../../includes/trip_recommendations.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
 require_once __DIR__ . '/../../includes/itinerary_schedule.php';
+require_once __DIR__ . '/../../includes/trip_references.php';
+require_once __DIR__ . '/../../includes/trip_progress.php';
 
 require_role(['customer']);
 
@@ -21,6 +23,10 @@ $tripRole = require_trip_permission($pdo, $tripId, 'view');
 $canEditItinerary = trip_role_can($tripRole, 'edit_itinerary');
 $canManageTrip = trip_role_can($tripRole, 'manage_trip');
 $canGiveFeedback = trip_role_can($tripRole, 'feedback');
+
+// FR-26: progress counts only the references this member may see.
+$visibleReferences = list_trip_references($pdo, $tripId, $tripRole, (int) $_SESSION['user_id']);
+$progress = get_trip_progress($pdo, $tripId, $visibleReferences);
 
 // Access was authorized above through the trip role, so ?id= values
 // for trips the user is not a member of never reach this query (§26).
@@ -215,6 +221,7 @@ $statusLabels = [
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
+    <link rel="stylesheet" href="/assets/css/references.css">
     <link rel="stylesheet" href="/assets/css/auth.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">
 </head>
@@ -224,6 +231,8 @@ $statusLabels = [
             <h1>My Trips</h1>
             <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
             <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>" class="logout-link">Places &amp; map</a>
+            <a href="/customer/trips/expenses.php?id=<?= (int) $tripId ?>" class="logout-link">Expenses</a>
+            <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>" class="logout-link">Booking references</a>
             <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
         </header>
 
@@ -238,7 +247,7 @@ $statusLabels = [
 
         <div class="trip-layout">
 
-        <section class="itinerary-section">
+        <section class="itinerary-section" id="itinerary">
             <h2>Itinerary</h2>
 
             <?php if ($canEditItinerary): ?>
@@ -653,6 +662,33 @@ $statusLabels = [
                         <dd class="<?= $remaining >= 0 ? '' : 'budget-over' ?>"><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format(abs($remaining), 2) ?></dd>
                     <?php endif; ?>
                 </dl>
+            </section>
+
+            <section class="trip-progress" aria-labelledby="progress-title">
+                <h2 id="progress-title">Progress</h2>
+                <dl class="progress-list">
+                    <?php foreach ([
+                        'activities' => ['Activities completed', '/customer/trips/view.php?id=' . (int) $tripId . '#itinerary', 'No activities yet'],
+                        'references' => ['Booking references confirmed', '/customer/trips/references.php?id=' . (int) $tripId, 'No booking references yet'],
+                        'expenses'   => ['Expense shares settled', '/customer/trips/expenses.php?id=' . (int) $tripId, 'No shares owed yet'],
+                    ] as $key => [$label, $href, $emptyText]): ?>
+                        <?php $done = (int) $progress[$key]['done']; $total = (int) $progress[$key]['total']; ?>
+                        <div class="progress-row">
+                            <dt><a href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></a></dt>
+                            <?php if ($total === 0): ?>
+                                <dd class="progress-empty"><?= htmlspecialchars($emptyText, ENT_QUOTES, 'UTF-8') ?></dd>
+                            <?php else: ?>
+                                <dd><strong><?= $done ?> of <?= $total ?></strong>
+                                    <progress max="<?= $total ?>" value="<?= $done ?>" aria-label="<?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>: <?= $done ?> of <?= $total ?>"></progress></dd>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                    <div class="progress-row">
+                        <dt>Reminders acknowledged</dt>
+                        <dd class="progress-empty">Reminders are not available yet</dd>
+                    </div>
+                </dl>
+                <p class="progress-note">Booking references count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). There is no overall percentage.</p>
             </section>
         </div>
     </main>
