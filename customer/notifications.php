@@ -5,7 +5,7 @@
  * Rows come from list_user_notifications(), which already hides rows the
  * user may no longer see. Sentences are generic (notification_sentence) and
  * never contain event details. Changes go to notification_action.php.
- * Email notifications and reminders are not available yet.
+ * Email is used only for due reminders, and only when the user turns it on.
  */
 require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../config/database.php';
@@ -27,9 +27,11 @@ if (!is_string($filter) || !isset($filters[$filter])) {
 $notifications = list_user_notifications($pdo, $userId, $filter);
 $unreadCount = count_unread_notifications($pdo, $userId);
 
-$stmt = $pdo->prepare('SELECT notify_in_app FROM users WHERE id = :id');
+$stmt = $pdo->prepare('SELECT notify_in_app, notify_email FROM users WHERE id = :id');
 $stmt->execute(['id' => $userId]);
-$notifyInApp = (int) $stmt->fetchColumn() === 1;
+$prefs = $stmt->fetch();
+$notifyInApp = (int) $prefs['notify_in_app'] === 1;
+$notifyEmail = (int) $prefs['notify_email'] === 1;
 
 $notice = $_SESSION['notification_notice'] ?? null;
 $error = $_SESSION['notification_error'] ?? null;
@@ -102,7 +104,9 @@ $rowAction = function (int $id, string $action, string $label) use ($filter): vo
                                     <?= $e(notification_sentence($n['event_type'])) ?>
                                 </p>
                                 <p class="notification-meta">
-                                    <?php if ((int) $n['can_open_trip'] === 1 && $n['trip_name'] !== null): ?>
+                                    <?php if ((int) $n['can_open_trip'] === 1 && $n['trip_name'] !== null && ($n['reminder_id'] ?? null) !== null): ?>
+                                        <a href="/customer/trips/reminders.php?id=<?= (int) $n['trip_id'] ?>">Open reminders</a> &middot; <?= $e($n['trip_name']) ?> &middot;
+                                    <?php elseif ((int) $n['can_open_trip'] === 1 && $n['trip_name'] !== null): ?>
                                         <a href="/customer/trips/view.php?id=<?= (int) $n['trip_id'] ?>"><?= $e($n['trip_name']) ?></a> &middot;
                                     <?php elseif ((int) $n['invitation_pending'] === 1): ?>
                                         <a href="/customer/dashboard.php#invitations">Respond to invitation</a> &middot;
@@ -135,10 +139,18 @@ $rowAction = function (int $id, string $action, string $label) use ($filter): vo
                         Show in-app notifications
                     </label>
                     <p class="notification-note">
-                        When this is off, new trip updates and invitations are not added here. Notifications you already have stay in your inbox.
-                        TravelEase does not send notification emails, and reminders are not available yet.
+                        When this is off, new trip updates, invitations and due reminders are not added here. Notifications you already have stay in your inbox.
                     </p>
-                    <button type="submit">Save preference</button>
+                    <input type="hidden" name="email_enabled" value="0">
+                    <label class="notification-toggle">
+                        <input type="checkbox" name="email_enabled" value="1"<?= $notifyEmail ? ' checked' : '' ?>>
+                        Email me when a reminder is due
+                    </label>
+                    <p class="notification-note">
+                        Off by default. Only due reminders are emailed, to your account address; other trip updates stay in-app.
+                        "Sent" means the email provider accepted the message, not that it reached your inbox. Reminders can arrive a few minutes late.
+                    </p>
+                    <button type="submit">Save preferences</button>
                 </form>
             </section>
         </div>

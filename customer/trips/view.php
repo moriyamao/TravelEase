@@ -26,13 +26,13 @@ $canGiveFeedback = trip_role_can($tripRole, 'feedback');
 
 // FR-26: progress counts only the references this member may see.
 $visibleReferences = list_trip_references($pdo, $tripId, $tripRole, (int) $_SESSION['user_id']);
-$progress = get_trip_progress($pdo, $tripId, $visibleReferences);
+$progress = get_trip_progress($pdo, $tripId, $visibleReferences, (int) $_SESSION['user_id']);
 
 // Access was authorized above through the trip role, so ?id= values
 // for trips the user is not a member of never reach this query (§26).
 $stmt = $pdo->prepare(
     'SELECT id, name, destination, start_date, end_date, status,
-            budget_currency, budget_amount, notes, created_at
+            budget_currency, budget_amount, notes, created_at, time_zone
      FROM trips
      WHERE id = :id
      LIMIT 1'
@@ -233,6 +233,7 @@ $statusLabels = [
             <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>" class="logout-link">Places &amp; map</a>
             <a href="/customer/trips/expenses.php?id=<?= (int) $tripId ?>" class="logout-link">Expenses</a>
             <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>" class="logout-link">Booking references</a>
+            <a href="/customer/trips/reminders.php?id=<?= (int) $tripId ?>" class="logout-link">Reminders</a>
             <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
         </header>
 
@@ -242,7 +243,7 @@ $statusLabels = [
                 <h1><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?></h1>
                 <p class="trip-hero-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
             </div>
-            <p class="trip-hero-date"><?= htmlspecialchars(date('M j, Y', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?><br>to <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?></p>
+            <p class="trip-hero-date"><?= htmlspecialchars(date('M j, Y', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?><br>to <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?><br><span class="trip-zone">Times in <?= htmlspecialchars(str_replace('_', ' ', $trip['time_zone']), ENT_QUOTES, 'UTF-8') ?></span></p>
         </section>
 
         <div class="trip-layout">
@@ -671,6 +672,7 @@ $statusLabels = [
                         'activities' => ['Activities completed', '/customer/trips/view.php?id=' . (int) $tripId . '#itinerary', 'No activities yet'],
                         'references' => ['Booking references confirmed', '/customer/trips/references.php?id=' . (int) $tripId, 'No booking references yet'],
                         'expenses'   => ['Expense shares settled', '/customer/trips/expenses.php?id=' . (int) $tripId, 'No shares owed yet'],
+                        'reminders'  => ['Your due reminders acknowledged', '/customer/trips/reminders.php?id=' . (int) $tripId, 'None of your reminders are due yet'],
                     ] as $key => [$label, $href, $emptyText]): ?>
                         <?php $done = (int) $progress[$key]['done']; $total = (int) $progress[$key]['total']; ?>
                         <div class="progress-row">
@@ -683,12 +685,8 @@ $statusLabels = [
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
-                    <div class="progress-row">
-                        <dt>Reminders acknowledged</dt>
-                        <dd class="progress-empty">Reminders are not available yet</dd>
-                    </div>
                 </dl>
-                <p class="progress-note">Booking references count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). There is no overall percentage.</p>
+                <p class="progress-note">Booking references count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). Reminders count only your own reminders that are due and not cancelled. There is no overall percentage.</p>
             </section>
         </div>
     </main>

@@ -1,6 +1,7 @@
 <?php
 // Generic text only: never copy comment bodies, booking codes or event details.
 const NOTIFICATION_MESSAGES = [
+    'reminder_due' => 'A personal trip reminder is due.',
     'invitation_received' => 'You have a pending trip invitation.',
     'trip_updated' => 'Trip details were updated.',
     'member_role_changed' => 'A trip member role changed.',
@@ -81,6 +82,7 @@ function notify_trip_invitation(PDO $pdo, int $tripId, int $inviteeId): void
 function visible_notifications_sql(): string
 {
     return 'SELECT n.id, n.trip_id, n.event_type, n.created_at, n.read_at, n.dismissed_at,
+                n.reminder_id,
                 CASE WHEN n.event_type = \'access_removed\' THEN NULL ELSE t.name END AS trip_name,
                 CASE WHEN n.event_type <> \'access_removed\' AND (t.user_id = n.user_id OR m.user_id IS NOT NULL)
                      THEN 1 ELSE 0 END AS can_open_trip,
@@ -91,7 +93,10 @@ function visible_notifications_sql(): string
             LEFT JOIN trip_invitations i ON i.id = n.invitation_id AND i.trip_id = n.trip_id
                 AND i.invitee_id = n.user_id AND i.issue_no = n.invitation_issue_no
                 AND i.status = \'pending\' AND i.expires_at > UTC_TIMESTAMP()
-            WHERE n.user_id = :user_id AND (
+            WHERE n.user_id = :user_id
+            AND (n.reminder_id IS NULL OR EXISTS (SELECT 1 FROM trip_reminders r
+                 WHERE r.id = n.reminder_id AND r.user_id = n.user_id AND r.trip_id = n.trip_id AND r.cancelled_at IS NULL))
+            AND (
                 n.event_type = \'access_removed\'
                 OR (n.event_type = \'invitation_received\' AND i.id IS NOT NULL)
                 OR (n.event_type NOT IN (\'access_removed\', \'invitation_received\')

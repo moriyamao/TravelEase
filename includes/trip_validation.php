@@ -1,4 +1,9 @@
 <?php
+function validate_trip_timezone(string $zone): ?string
+{
+    return in_array($zone, DateTimeZone::listIdentifiers(), true) ? null : 'Choose a valid IANA trip time zone.';
+}
+
 /**
  * Server-side validation for trip create/edit forms.
  * Client-side validation on the forms is for usability only.

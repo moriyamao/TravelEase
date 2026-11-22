@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/transactional_mail.php';
 
 function reserve_email_verification_resend(PDO $pdo, int $userId, string $ipAddress): bool
 {
@@ -54,42 +55,18 @@ function release_email_verification_resend(PDO $pdo, int $userId, string $ipAddr
  */
 function send_email_verification(PDO $pdo, int $userId, string $email, string $name): bool
 {
-    $baseUrl = rtrim(getenv('APP_URL') ?: '', '/');
-    $apiKey = getenv('BREVO_API_KEY') ?: '';
-    $fromEmail = getenv('MAIL_FROM_EMAIL') ?: '';
-    $scheme = parse_url($baseUrl, PHP_URL_SCHEME);
-    if (!filter_var($baseUrl, FILTER_VALIDATE_URL) || !in_array($scheme, ['http', 'https'], true)
-        || $apiKey === '' || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+    $config = transactional_mail_config();
+    if ($config === null) {
         error_log('TravelEase: verification email not sent; APP_URL, BREVO_API_KEY or MAIL_FROM_EMAIL is missing or invalid.');
         return false;
     }
+    $baseUrl = $config['base_url'];
 
     $token = create_email_verification_token($pdo, $userId);
     $link = $baseUrl . '/auth/verify_email.php?token=' . urlencode($token);
-    $payload = json_encode([
-        'sender'      => ['email' => $fromEmail, 'name' => getenv('MAIL_FROM_NAME') ?: 'TravelEase'],
-        'to'          => [['email' => $email, 'name' => $name]],
-        'subject'     => 'Verify your TravelEase email address',
-        'textContent' => "Hello {$name},\n\nPlease verify your TravelEase account by opening this link:\n{$link}\n\nThis link expires in 24 hours and can only be used once.\n",
-    ]);
-
-    // BREVO_API_URL is only for pointing local tests at a stub; leave it unset.
-    $ch = curl_init(getenv('BREVO_API_URL') ?: 'https://api.brevo.com/v3/smtp/email');
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => ['accept: application/json', 'content-type: application/json', 'api-key: ' . $apiKey],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT        => 10,
-    ]);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
-
-    if ($response === false || $httpCode < 200 || $httpCode >= 300) {
-        error_log("TravelEase: Brevo rejected verification email for user {$userId} (HTTP {$httpCode}) {$curlError}");
+    $result = send_transactional_email($email, $name, 'Verify your TravelEase email address',
+        "Hello {$name},\n\nPlease verify your TravelEase account by opening this link:\n{$link}\n\nThis link expires in 24 hours and can only be used once.\n");
+    if ($result !== 'sent') {
         // Don't leave a usable token behind for an email that never went out.
         $stmt = $pdo->prepare('DELETE FROM email_verification_tokens WHERE token_hash = :token_hash');
         $stmt->execute(['token_hash' => hash('sha256', $token)]);

@@ -30,8 +30,12 @@ try {
             http_response_code(400);
             exit('Choose whether to receive in-app notifications.');
         }
-        $stmt = $pdo->prepare('UPDATE users SET notify_in_app = :enabled WHERE id = :id');
-        $stmt->execute(['enabled' => (int) $enabled, 'id' => $userId]);
+        $emailEnabled = $_POST['email_enabled'] ?? null;
+        if ($emailEnabled !== null && !in_array($emailEnabled, ['0', '1'], true)) {
+            http_response_code(400); exit('Choose whether to receive reminder emails.');
+        }
+        $stmt = $pdo->prepare('UPDATE users SET notify_in_app = :enabled, notify_email = COALESCE(:email_enabled, notify_email) WHERE id = :id');
+        $stmt->execute(['enabled' => (int) $enabled, 'email_enabled' => $emailEnabled, 'id' => $userId]);
         $_SESSION['notification_notice'] = 'Notification preferences saved. This applies to future notifications.';
     } else {
         $id = $_POST['notification_id'] ?? null;
