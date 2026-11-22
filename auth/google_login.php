@@ -115,4 +115,5 @@ function log_in_user(int $userId, string $role, string $name, string $email): vo
     $_SESSION['user_name']  = $name;
     $_SESSION['user_email'] = $email;
     $_SESSION['login_attempts'] = 0;
+    $_SESSION['authenticated_at'] = time(); // FR-34: recent sign-in check for account deletion
 }

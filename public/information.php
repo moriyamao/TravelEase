@@ -160,8 +160,12 @@ $updated = 'November 22, 2026';
             <h2 id="requests-heading">Your requests and contact</h2>
             <p>
                 You can edit your profile, notification settings and trip content yourself, and leave trips you don't own.
-                There is no automatic way to download a copy of your data or delete your own account yet. To ask for either,
-                send a request through the support chat while signed in. It will be handled by hand by the project team, which can take time.
+                On your Profile page you can download a copy of your data as a JSON file, and customers can delete their own
+                account after confirming their password (or a recent Google sign-in). Deleting is permanent: trips you own alone
+                are deleted, you are removed from other trips, and your reminders, notifications, invitations and support requests
+                are deleted. Comments and expense entries keep your name so other travelers' records stay complete. If you own a
+                trip that other people are on, transfer it or delete it first. Staff and administrator accounts are removed by an
+                administrator.
             </p>
             <p>
                 Signed-in users can reach staff through the support chat. If you can't sign in, contact the TravelEase project team

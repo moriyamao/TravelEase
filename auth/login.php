@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                $_SESSION['user_role']  = $user['role'];
                $_SESSION['user_name']  = $user['name'];
                $_SESSION['user_email'] = $user['email'];
+               $_SESSION['authenticated_at'] = time(); // FR-34: recent sign-in check for account deletion
 
                 // Go straight to the role's dashboard (role was just read
                 // from the database above); that page re-checks access.
@@ -85,6 +86,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
     <main class="auth-container">
+        <?php if (isset($_GET['account_deleted'])): ?>
+            <p class="success-message" role="status">Your account was deleted.</p>
+        <?php endif; ?>
         <h1>Sign in to TravelEase</h1>
 
         <?php if (!empty($errors)): ?>
