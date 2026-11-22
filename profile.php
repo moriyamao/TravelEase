@@ -12,7 +12,7 @@ require_login();
 $pdo = get_db_connection();
 $userId = current_user_id();
 
-$stmt = $pdo->prepare('SELECT name, email, profile_picture, google_subject, password_hash IS NOT NULL AS has_password FROM users WHERE id = :id LIMIT 1');
+$stmt = $pdo->prepare('SELECT name, email, profile_picture, google_subject, password_hash IS NOT NULL AS has_password, notify_in_app, notify_email FROM users WHERE id = :id LIMIT 1');
 $stmt->execute(['id' => $userId]);
 $user = $stmt->fetch();
 
@@ -24,6 +24,9 @@ if (!$user) {
 
 $errors = [];
 $success = false;
+$notificationNotice = $_SESSION['notification_notice'] ?? null;
+$notificationError = $_SESSION['notification_error'] ?? null;
+unset($_SESSION['notification_notice'], $_SESSION['notification_error']);
 $name = $user['name'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -45,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $extension = validate_profile_picture_upload($_FILES['profile_picture']);
 
                 $uploadDir = __DIR__ . '/uploads/profile_pictures/';
-                $filename  = 'user_' . $userId . '_' . time() . '.' . $extension;
+                $filename  = 'user_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(16)) . '.' . $extension;
                 $destPath  = $uploadDir . $filename;
 
                 if (!move_uploaded_file($_FILES['profile_picture']['tmp_name'], $destPath)) {
@@ -120,9 +123,7 @@ $backLink = $dashboardByRole[current_user_role()] ?? '/public/index.php';
             <h1>Profile Settings</h1>
             <a href="<?= htmlspecialchars($backLink, ENT_QUOTES, 'UTF-8') ?>" class="logout-link">Back to Dashboard</a>
             <a href="/public/information.php" class="logout-link">Terms &amp; privacy</a>
-            <?php if (current_user_role() === 'customer'): ?>
-            <a href="/customer/notifications.php#preferences" class="logout-link">Notification preferences</a>
-            <?php endif; ?>
+            <a href="#notification-preferences" class="logout-link">Notification preferences</a>
         </header>
 
         <div class="form-card">
@@ -165,6 +166,22 @@ $backLink = $dashboardByRole[current_user_role()] ?? '/public/index.php';
                 <button type="submit">Save Changes</button>
             </form>
         </div>
+        <section class="form-card" id="notification-preferences" aria-labelledby="notification-preferences-heading">
+            <h2 id="notification-preferences-heading">Notification preferences</h2>
+            <?php if ($notificationNotice): ?><p class="success-message" role="status"><?= htmlspecialchars($notificationNotice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+            <?php if ($notificationError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($notificationError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+            <form method="post" action="/customer/notification_action.php">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="preferences">
+                <input type="hidden" name="return_to" value="profile">
+                <input type="hidden" name="enabled" value="0">
+                <label><input type="checkbox" name="enabled" value="1"<?= (int) $user['notify_in_app'] === 1 ? ' checked' : '' ?>> Show in-app notifications</label>
+                <input type="hidden" name="email_enabled" value="0">
+                <label><input type="checkbox" name="email_enabled" value="1"<?= (int) $user['notify_email'] === 1 ? ' checked' : '' ?>> Email me when a reminder is due</label>
+                <p class="field-hint">Changes apply to future notifications.</p>
+                <button type="submit">Save preferences</button>
+            </form>
+        </section>
         <?php if ($user['google_subject'] === null): ?>
         <div class="form-card">
             <h2>Link Google account</h2>

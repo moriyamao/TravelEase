@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
+require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/google_auth.php';
 require_once __DIR__ . '/../includes/auth.php';
 
