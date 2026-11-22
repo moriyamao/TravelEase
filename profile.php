@@ -4,6 +4,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/profile_validation.php';
+require_once __DIR__ . '/includes/account_privacy.php';
 
 // Any logged-in role can manage their own profile -- not role-specific.
 require_login();
@@ -11,7 +12,7 @@ require_login();
 $pdo = get_db_connection();
 $userId = current_user_id();
 
-$stmt = $pdo->prepare('SELECT name, email, profile_picture, google_subject FROM users WHERE id = :id LIMIT 1');
+$stmt = $pdo->prepare('SELECT name, email, profile_picture, google_subject, password_hash IS NOT NULL AS has_password FROM users WHERE id = :id LIMIT 1');
 $stmt->execute(['id' => $userId]);
 $user = $stmt->fetch();
 
@@ -193,6 +194,58 @@ $backLink = $dashboardByRole[current_user_role()] ?? '/public/index.php';
                 google.accounts.id.renderButton(document.getElementById('google-link-button'), {theme: 'outline', size: 'large', width: 320});
             };
         </script>
+        <?php endif; ?>
+
+        <?php
+        $accountError = $_SESSION['account_error'] ?? null;
+        unset($_SESSION['account_error']);
+        $isCustomer = current_user_role() === 'customer';
+        $deletionBlockers = $isCustomer ? account_deletion_blockers($pdo, $userId) : [];
+        ?>
+        <section class="form-card account-privacy" id="your-data" aria-labelledby="your-data-heading">
+            <h2 id="your-data-heading">Your data</h2>
+            <?php if ($accountError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($accountError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+            <p>
+                Download a copy of your account, the trips you own or belong to (as your role shows them), and your own comments,
+                votes, reminders, notifications, invitations and support requests, as one JSON file. Other members' email addresses
+                and anything you can't see in TravelEase are not included.
+            </p>
+            <form method="post" action="/account/export.php">
+                <?= csrf_field() ?>
+                <button type="submit">Download my data</button>
+            </form>
+        </section>
+
+        <?php if ($isCustomer): ?>
+        <section class="form-card account-privacy" id="delete-account" aria-labelledby="delete-heading">
+            <h2 id="delete-heading">Delete my account</h2>
+            <p>
+                This permanently deletes your account and cannot be undone. Trips you own alone are deleted with it, and you are
+                removed from trips you belong to. Your reminders, notifications, invitations and support requests are deleted.
+                Comments you wrote and expense entries keep showing your name to the other travelers.
+            </p>
+            <?php if ($deletionBlockers): ?>
+                <p class="form-errors">
+                    You own trips that other people are on. Transfer ownership to another member or delete these trips first:
+                    <?php foreach ($deletionBlockers as $blockerId => $blockerName): ?>
+                        <a href="/customer/trips/view.php?id=<?= (int) $blockerId ?>"><?= htmlspecialchars($blockerName, ENT_QUOTES, 'UTF-8') ?></a><?= $blockerName !== end($deletionBlockers) ? ',' : '' ?>
+                    <?php endforeach; ?>
+                </p>
+            <?php else: ?>
+                <form method="post" action="/account/delete.php" onsubmit="return confirm('Permanently delete your TravelEase account? This cannot be undone.');">
+                    <?= csrf_field() ?>
+                    <?php if ((int) $user['has_password'] === 1): ?>
+                        <label for="delete-password">Your password</label>
+                        <input type="password" id="delete-password" name="password" required autocomplete="current-password">
+                    <?php else: ?>
+                        <p>You sign in with Google. If you signed in more than 10 minutes ago, sign out and sign in again first.</p>
+                    <?php endif; ?>
+                    <label for="delete-confirm">Type DELETE to confirm</label>
+                    <input id="delete-confirm" name="confirm" required pattern="DELETE" autocomplete="off">
+                    <button type="submit" class="btn-danger">Delete my account</button>
+                </form>
+            <?php endif; ?>
+        </section>
         <?php endif; ?>
     </main>
 </body>

@@ -118,7 +118,10 @@ try {
         $stmt->execute(['item_id' => $itemId, 'user_id' => $me]);
     } else {
         $stmt = $pdo->prepare(
-            'INSERT INTO itinerary_item_comments (itinerary_item_id, user_id, body) VALUES (:item_id, :user_id, :body)'
+            // FR-34: keep the author's display name with the comment, so it still
+            // shows who wrote it if they later delete their account.
+            'INSERT INTO itinerary_item_comments (itinerary_item_id, user_id, author_name, body)
+             SELECT :item_id, id, name, :body FROM users WHERE id = :user_id'
         );
         $stmt->execute(['item_id' => $itemId, 'user_id' => $me, 'body' => $body]);
         log_trip_activity($pdo, $tripId, 'comment_added', null, (string) $itemTitle);

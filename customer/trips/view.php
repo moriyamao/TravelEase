@@ -130,10 +130,11 @@ $items = $stmt->fetchAll();
 $commentsByItem = [];
 if (array_sum(array_column($items, 'comment_count')) > 0) {
     $stmt = $pdo->prepare(
-        'SELECT ic.itinerary_item_id, ic.body, ic.created_at, u.name
+        'SELECT ic.itinerary_item_id, ic.body, ic.created_at,
+                COALESCE(u.name, ic.author_name, \'Deleted user\') AS name
          FROM itinerary_item_comments ic
          JOIN itinerary_items i ON i.id = ic.itinerary_item_id
-         JOIN users u ON u.id = ic.user_id
+         LEFT JOIN users u ON u.id = ic.user_id
          WHERE i.trip_id = :trip_id
          ORDER BY ic.created_at ASC, ic.id ASC'
     );

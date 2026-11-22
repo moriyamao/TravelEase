@@ -55,3 +55,10 @@ input[type="file"] {
     border: 1px dashed var(--line);
     background: var(--paper);
 }
+
+/* FR-34: Your data / Delete my account cards on the profile page */
+.account-privacy::before { content: 'Your privacy'; }
+.account-privacy { margin-top: 1.5rem; }
+.account-privacy p { color: var(--ink-muted); line-height: 1.6; }
+.account-privacy button[type="submit"].btn-danger { width: 100%; margin-top: 1.2rem; padding: .8rem; border: 1px solid var(--caution); background: transparent; color: var(--caution); box-shadow: none; font-weight: 700; }
+.account-privacy button[type="submit"].btn-danger:hover, .account-privacy button[type="submit"].btn-danger:focus { background: var(--caution-bg); }
