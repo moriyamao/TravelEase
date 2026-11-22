@@ -34,7 +34,7 @@ $progress = get_trip_progress($pdo, $tripId, $visibleReferences, (int) $_SESSION
 // for trips the user is not a member of never reach this query (§26).
 $stmt = $pdo->prepare(
     'SELECT id, name, destination, start_date, end_date, status,
-            budget_currency, budget_amount, notes, created_at, time_zone
+            budget_currency, budget_amount, notes, created_at, time_zone, archived_at
      FROM trips
      WHERE id = :id
      LIMIT 1'
@@ -247,11 +247,15 @@ $statusLabels = [
             <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>" class="logout-link">Booking references</a>
             <a href="/customer/trips/reminders.php?id=<?= (int) $tripId ?>" class="logout-link">Reminders</a>
             <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
+            <a href="/customer/dashboard.php?archived=1" class="logout-link">Archived trips</a>
             <?php if ($canManageTrip): ?>
                 <a href="/customer/trips/share_links.php?id=<?= (int) $tripId ?>" class="logout-link">Share links</a>
             <?php endif; ?>
         </header>
 
+        <?php if ($trip['archived_at'] !== null): ?>
+            <p role="status">This trip is archived. Its status, permissions and reminders are unchanged. The owner can restore it below.</p>
+        <?php endif; ?>
         <section class="trip-hero">
             <div>
                 <p class="eyebrow">Journey dossier &middot; <span class="status-badge status-<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?></span></p>
@@ -736,6 +740,12 @@ $statusLabels = [
                 </dl>
                 <?php if ($canManageTrip): ?>
                 <div class="trip-detail-actions">
+                    <form method="post" action="/customer/trips/archive.php">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                        <input type="hidden" name="action" value="<?= $trip['archived_at'] !== null ? 'restore' : 'archive' ?>">
+                        <button type="submit"><?= $trip['archived_at'] !== null ? 'Restore trip' : 'Archive trip' ?></button>
+                    </form>
                     <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-primary">Edit trip</a>
                     <form method="post" action="/customer/trips/delete.php" onsubmit="return confirm('Delete this trip? This cannot be undone.');">
                         <?= csrf_field() ?>

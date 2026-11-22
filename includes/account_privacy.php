@@ -40,7 +40,7 @@ function build_account_export(PDO $pdo, int $userId): array
     $trips = [];
     $tripRows = account_export_rows($pdo,
         'SELECT t.id, t.name, t.destination, t.start_date, t.end_date, t.status, t.budget_currency, t.budget_amount,
-                t.notes, t.time_zone, t.created_at
+                t.notes, t.time_zone, t.archived_at, t.created_at
          FROM trips t
          WHERE t.user_id = :owner_id OR EXISTS (
              SELECT 1 FROM trip_memberships m WHERE m.trip_id = t.id AND m.user_id = :member_id)
