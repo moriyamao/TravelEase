@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/trip_recommendations.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
 require_once __DIR__ . '/../../includes/itinerary_validation.php';
+require_once __DIR__ . '/../../includes/itinerary_schedule.php';
 require_once __DIR__ . '/../../includes/trip_references.php';
 require_once __DIR__ . '/../../includes/trip_progress.php';
 
@@ -141,6 +142,11 @@ if (array_sum(array_column($items, 'comment_count')) > 0) {
         $commentsByItem[(int) $comment['itinerary_item_id']][] = $comment;
     }
 }
+
+// FR-20: non-blocking schedule warnings (overlaps, activities outside the
+// trip dates), computed from the rows above with no extra query.
+$scheduleWarnings = itinerary_schedule_warnings($items, $trip['start_date'], $trip['end_date']);
+$itemTitles = array_column($items, 'title', 'id');
 
 // Group items by date for the day-by-day display.
 $itemsByDate = [];
@@ -300,6 +306,10 @@ $statusLabels = [
                 </ul>
             <?php endif; ?>
 
+            <?php if ($scheduleWarnings): ?>
+                <p class="schedule-summary" role="status"><?= count($scheduleWarnings) === 1 ? '1 activity has a schedule warning.' : count($scheduleWarnings) . ' activities have schedule warnings.' ?> Warnings do not block saving.</p>
+            <?php endif; ?>
+
             <?php if (empty($itemsByDate)): ?>
                 <p class="empty-state">No itinerary items yet.<?= $canEditItinerary ? ' Add your first stop below.' : '' ?></p>
             <?php else: ?>
@@ -333,6 +343,17 @@ $statusLabels = [
                                             <span class="itinerary-done">Done<?= $item['completed_by_name'] !== null ? ' · by ' . htmlspecialchars($item['completed_by_name'], ENT_QUOTES, 'UTF-8') : '' ?></span>
                                         <?php endif; ?>
                                     </p>
+                                    <?php if (!empty($scheduleWarnings[(int) $item['id']])): ?>
+                                        <ul class="itinerary-warnings">
+                                            <?php foreach ($scheduleWarnings[(int) $item['id']] as $warning): ?>
+                                                <?php if ($warning['type'] === 'outside_trip'): ?>
+                                                    <li>Outside the trip dates. Move it to a day within the trip.</li>
+                                                <?php elseif ($warning['type'] === 'overlap'): ?>
+                                                    <li>Overlaps with &ldquo;<?= htmlspecialchars((string) ($itemTitles[$warning['other_id']] ?? 'another activity'), ENT_QUOTES, 'UTF-8') ?>&rdquo; (<?= htmlspecialchars($warning['other_start'] . '–' . $warning['other_end'], ENT_QUOTES, 'UTF-8') ?>)</li>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
                                     <?php if ($item['estimated_cost'] !== null || $item['actual_cost'] !== null): ?>
                                         <p class="itinerary-cost">
                                             <?php if ($item['estimated_cost'] !== null): ?>

@@ -88,6 +88,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     die('Trip not found.');
                 }
 
+                if ($startDate !== $current['start_date'] || $endDate !== $current['end_date']) {
+                    // A locking read sees activities committed while this
+                    // request waited for the trip lock, not an older snapshot.
+                    $stmt = $pdo->prepare(
+                        'SELECT id FROM itinerary_items
+                         WHERE trip_id = :trip_id AND (item_date < :start_date OR item_date > :end_date)
+                         LIMIT 1 FOR UPDATE'
+                    );
+                    $stmt->execute(['trip_id' => $tripId, 'start_date' => $startDate, 'end_date' => $endDate]);
+                    if ($stmt->fetchColumn() !== false) {
+                        throw new DomainException('Trip dates must include all itinerary activities. Move or delete activities outside the new dates first.');
+                    }
+                }
+
                 // UPDATE also scoped by user_id -- belt-and-suspenders
                 // with the load above. Even if something upstream were
                 // ever refactored carelessly, this query alone still
@@ -143,6 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: /customer/trips/view.php?id=' . $tripId);
                 exit;
 
+            } catch (DomainException $e) {
+                $pdo->rollBack();
+                $errors[] = $e->getMessage();
             } catch (PDOException $e) {
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
