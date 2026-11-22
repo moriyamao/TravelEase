@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS trips (
     start_date      DATE                NOT NULL,
     end_date        DATE                NOT NULL,
     time_zone       VARCHAR(64)         NOT NULL DEFAULT 'Asia/Manila',
+    archived_at     DATETIME            NULL,
     status          ENUM('planning', 'confirmed', 'completed', 'cancelled')
                                          NOT NULL DEFAULT 'planning',
     budget_currency CHAR(3)             NOT NULL DEFAULT 'PHP',

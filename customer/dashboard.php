@@ -8,6 +8,8 @@ require_once __DIR__ . '/../includes/notifications.php';
 require_role(['customer']);
 
 $pdo = get_db_connection();
+$showArchived = ($_GET['archived'] ?? null) === '1';
+$archiveCondition = $showArchived ? 'IS NOT NULL' : 'IS NULL';
 $unreadNotifications = count_unread_notifications($pdo, current_user_id());
 
 // Ownership scoping: only ever fetch trips belonging to the logged-in
@@ -15,17 +17,18 @@ $unreadNotifications = count_unread_notifications($pdo, current_user_id());
 $stmt = $pdo->prepare(
     'SELECT id, name, destination, start_date, end_date, status
      FROM trips
-     WHERE user_id = :user_id
+     WHERE user_id = :user_id AND archived_at ' . $archiveCondition . '
      ORDER BY start_date ASC'
 );
 $stmt->execute(['user_id' => current_user_id()]);
 $trips = $stmt->fetchAll();
 
 $stmt = $pdo->prepare(
-    'SELECT t.id, t.name, t.destination, t.start_date, t.end_date, m.role
+    'SELECT t.id, t.name, t.destination, t.start_date, t.end_date, t.status, m.role
      FROM trip_memberships m
      JOIN trips t ON t.id = m.trip_id
      WHERE m.user_id = :user_id AND m.role <> :owner
+       AND t.archived_at ' . $archiveCondition . '
      ORDER BY t.start_date ASC'
 );
 $stmt->execute(['user_id' => current_user_id(), 'owner' => 'owner']);
@@ -70,7 +73,7 @@ $today = date('Y-m-d');
 
 foreach ($trips as $trip) {
     $statusCounts[$trip['status']] = ($statusCounts[$trip['status']] ?? 0) + 1;
-    if ($nextTrip === null && $trip['start_date'] >= $today && $trip['status'] !== 'cancelled') {
+    if (!$showArchived && $nextTrip === null && $trip['start_date'] >= $today && $trip['status'] !== 'cancelled') {
         $nextTrip = $trip;
     }
 }
@@ -176,10 +179,14 @@ $daysUntilNextTrip = $nextTrip
         <section class="journeys-section" aria-labelledby="journeys-heading">
             <div class="journeys-heading-row">
                 <div>
-                    <h2 id="journeys-heading">Your journeys</h2>
+                    <h2 id="journeys-heading"><?= $showArchived ? 'Archived journeys' : 'Your journeys' ?></h2>
                     <p>One place for every route, date, and plan.</p>
+                    <nav aria-label="Trip archive views">
+                        <a href="/customer/dashboard.php"<?= !$showArchived ? ' aria-current="page"' : '' ?>>Active trips</a>
+                        · <a href="/customer/dashboard.php?archived=1"<?= $showArchived ? ' aria-current="page"' : '' ?>>Archived trips</a>
+                    </nav>
                 </div>
-                <?php if (!empty($trips)): ?>
+                <?php if ($trips || $sharedTrips): ?>
                     <div class="trip-filter-bar">
                         <label class="sr-only" for="trip-search">Search trips</label>
                         <input type="search" id="trip-search" placeholder="Search trips or places">
@@ -203,13 +210,13 @@ $daysUntilNextTrip = $nextTrip
             <?php if (empty($trips)): ?>
                 <div class="empty-state">
                     <img src="/assets/images/travelease-logo-mark.svg" alt="">
-                    <h2>Your next journey starts here.</h2>
-                    <p>Create your first trip to organize destinations, dates, activities, and budget.</p>
-                    <a href="/customer/trips/create.php" class="btn-primary">Plan your first trip</a>
+                    <h2><?= $showArchived ? 'No archived trips you own.' : 'Your next journey starts here.' ?></h2>
+                    <p><?= $showArchived ? 'Archive a trip from its trip page. Archiving never deletes it.' : 'Create your first trip to organize destinations, dates, activities, and budget.' ?></p>
+                    <?php if (!$showArchived): ?><a href="/customer/trips/create.php" class="btn-primary">Plan your first trip</a><?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="journeys-layout">
-                    <div class="trip-grid" id="trip-grid">
+                    <div class="trip-grid" id="trip-grid" data-trip-list>
                         <?php foreach ($trips as $trip): ?>
                             <a class="trip-card"
                                href="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>"
@@ -243,16 +250,20 @@ $daysUntilNextTrip = $nextTrip
                         <button type="button" id="dashboard-open-chat">Ask TravelEase support <span>→</span></button>
                     </aside>
                 </div>
-                <p id="trip-no-results">No trips match your search.</p>
             <?php endif; ?>
+            <p id="trip-no-results" hidden>No trips match your search.</p>
         </section>
 
         <?php if ($sharedTrips): ?>
             <section class="journeys-section" aria-labelledby="shared-heading">
-                <h2 id="shared-heading">Shared with you</h2>
-                <div class="trip-grid">
+                <h2 id="shared-heading"><?= $showArchived ? 'Archived shared trips' : 'Shared with you' ?></h2>
+                <div class="trip-grid" data-trip-list>
                     <?php foreach ($sharedTrips as $sharedTrip): ?>
-                        <a class="trip-card" href="/customer/trips/view.php?id=<?= (int) $sharedTrip['id'] ?>">
+                        <a class="trip-card" href="/customer/trips/view.php?id=<?= (int) $sharedTrip['id'] ?>"
+                           data-name="<?= htmlspecialchars(mb_strtolower($sharedTrip['name']), ENT_QUOTES, 'UTF-8') ?>"
+                           data-destination="<?= htmlspecialchars(mb_strtolower($sharedTrip['destination']), ENT_QUOTES, 'UTF-8') ?>"
+                           data-status="<?= htmlspecialchars($sharedTrip['status'], ENT_QUOTES, 'UTF-8') ?>"
+                           data-start="<?= htmlspecialchars($sharedTrip['start_date'], ENT_QUOTES, 'UTF-8') ?>">
                             <div class="trip-card-content">
                                 <span class="status-badge"><?= htmlspecialchars(ucfirst($sharedTrip['role']), ENT_QUOTES, 'UTF-8') ?></span>
                                 <h3><?= htmlspecialchars($sharedTrip['name'], ENT_QUOTES, 'UTF-8') ?></h3>
@@ -286,7 +297,7 @@ $daysUntilNextTrip = $nextTrip
 
     <script>
         (function () {
-            const grid = document.getElementById('trip-grid');
+            const cards = Array.from(document.querySelectorAll('[data-trip-list] .trip-card'));
             const dashboardChatButton = document.getElementById('dashboard-open-chat');
 
             if (dashboardChatButton) {
@@ -295,13 +306,12 @@ $daysUntilNextTrip = $nextTrip
                 });
             }
 
-            if (!grid) return;
+            if (!cards.length) return;
 
             const searchInput = document.getElementById('trip-search');
             const statusFilter = document.getElementById('trip-status-filter');
             const sortSelect = document.getElementById('trip-sort');
             const noResults = document.getElementById('trip-no-results');
-            const cards = Array.from(grid.querySelectorAll('.trip-card'));
 
             function applyFilters() {
                 const query = searchInput.value.trim().toLowerCase();
@@ -316,6 +326,7 @@ $daysUntilNextTrip = $nextTrip
                     if (visible) visibleCount++;
                 });
 
+                noResults.hidden = visibleCount !== 0;
                 noResults.style.display = visibleCount === 0 ? 'block' : 'none';
             }
 
@@ -327,7 +338,7 @@ $daysUntilNextTrip = $nextTrip
                     if (sortBy === 'name-asc') return a.dataset.name.localeCompare(b.dataset.name);
                     return 0;
                 });
-                sorted.forEach((card) => grid.appendChild(card));
+                sorted.forEach((card) => card.parentElement.appendChild(card));
             }
 
             searchInput.addEventListener('input', applyFilters);
