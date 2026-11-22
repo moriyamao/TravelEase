@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/notifications.php';
 /**
  * FR-18 trip activity history.
  *
@@ -73,6 +74,8 @@ function log_trip_activity(PDO $pdo, int $tripId, string $eventType, ?int $targe
         'target_user_id' => $targetUserId,
         'details'        => $details,
     ]);
+    notify_trip_activity($pdo, $tripId, (int) $pdo->lastInsertId(), $eventType,
+        (int) current_user_id(), $targetUserId);
 }
 
 /** Plain-text sentence for one history row (escape when rendering). */

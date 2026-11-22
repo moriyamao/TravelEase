@@ -18,6 +18,7 @@ This is a Mapúa University academic team project. The repository has progressed
 | Shared expenses (FR-22/23) | Planned and actual itinerary costs by category, plus a separate expense ledger with equal or custom shares, settlement status, and balances by currency. Owners and editors manage the ledger. Receipt links are visible to trip members. |
 | Booking references (FR-24 metadata slice) | Owners and editors add, update and delete references with provider, confirmation code, dates, HTTPS link and pending/confirmed status. Visibility is all members, owner/editors, or creator/current owner. Attachments and downloads are not implemented. |
 | Progress (FR-26 partial) | Separate counts show completed activities, confirmed references visible to the current member, and settled non-payer expense shares. Empty categories show no items. Reminder acknowledgement is not implemented; no combined completion score is claimed. |
+| Notifications (FR-30, event slice) | Customer inbox with read/unread, dismiss/restore and an in-app opt-out. Invitations notify the invitee once per issue; role, comment, itinerary, place and expense updates notify other current customer members. Inbox visibility and unread counts follow current membership; private reference events are excluded. Removed members see only a generic access-removal message. Scheduled reminders and email notifications are not implemented. |
 | Profiles | Profile editing and validated profile-picture uploads |
 | Support | AI support widget, escalation queue, customer/staff message threads, staff replies and resolution |
 | Staff | Read-only trip oversight, support dashboard and escalation handling |
@@ -124,6 +125,7 @@ Useful smoke checks for a new environment include login/logout, denied customer 
 
 - The included `Dockerfile` serves the project root through PHP/Apache and reads Render's `PORT` at startup. Supply database and integration settings through the hosting environment.
 - Before deploying booking references and progress to an existing database, apply `database/migration_021_add_trip_references.sql` once. Fresh installs already include this table in `schema.sql`; do not run 021 on top of that schema. FR-24 attachments/downloads and FR-25 reminders still require private object storage and scheduled processing.
+- Before deploying notifications to an existing database, apply `database/migration_022_add_notifications.sql` once after 021. It adds `users.notify_in_app` and `notifications`; both are already in the fresh schema. Existing history is not backfilled into notifications.
 - Protect configuration, environment files, SQL files, and internal documents from direct HTTP access when serving the repository root. Do not treat the development server or the current container configuration as a complete production hardening baseline.
 - Uploaded profile pictures use local storage. Render's ephemeral filesystem can discard them on restart/redeploy; durable storage requires a persistent disk or external object storage.
 - Login and chat rate limits are per-session, not shared limits across sessions or hosts.
