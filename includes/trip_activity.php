@@ -14,6 +14,8 @@ require_once __DIR__ . '/notifications.php';
 
 /** Event type => sentence template. {actor}, {target}, {details}. */
 const TRIP_ACTIVITY_EVENTS = [
+    'share_link_created'    => '{actor} created a {details} share link',
+    'share_link_revoked'    => '{actor} revoked a share link',
     'trip_created'          => '{actor} created the trip',
     'trip_updated'          => '{actor} updated trip details: {details}',
     'member_invited'        => '{actor} invited someone as {details}',

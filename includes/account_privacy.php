@@ -96,6 +96,9 @@ function build_account_export(PDO $pdo, int $userId): array
             'notifications' => ['in_app' => (bool) $user['notify_in_app'], 'reminder_email' => (bool) $user['notify_email']],
         ],
         'trips' => $trips,
+        'share_links_created' => account_export_rows($pdo,
+            'SELECT id, trip_id, kind, created_at, expires_at, revoked_at FROM trip_share_links WHERE created_by = :user ORDER BY id',
+            ['user' => $userId]),
         'your_comments' => account_export_rows($pdo,
             'SELECT t.name AS trip, i.title AS activity, c.body, c.created_at
              FROM itinerary_item_comments c JOIN itinerary_items i ON i.id = c.itinerary_item_id JOIN trips t ON t.id = i.trip_id

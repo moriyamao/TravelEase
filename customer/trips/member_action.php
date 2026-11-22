@@ -149,6 +149,10 @@ try {
         $pdo->commit();
         member_notice('Member role updated.');
     } elseif ($action === 'remove') {
+        // A removed person may have copied a bearer link. Retire all links so
+        // none can restore their access; the owner can create fresh ones.
+        $stmt = $pdo->prepare('UPDATE trip_share_links SET revoked_at = UTC_TIMESTAMP() WHERE trip_id = :trip AND revoked_at IS NULL');
+        $stmt->execute(['trip' => $tripId]);
         $stmt = $pdo->prepare('DELETE FROM trip_memberships WHERE trip_id = :trip_id AND user_id = :user_id');
         $stmt->execute(['trip_id' => $tripId, 'user_id' => $memberId]);
         // Record the access removal on their invitation, if any.
@@ -161,6 +165,9 @@ try {
         $pdo->commit();
         member_notice('Member removed. Their access ended immediately.');
     } else { // transfer (target eligibility checked above, under lock)
+        // Revocation persists even if ownership is transferred back later.
+        $stmt = $pdo->prepare('UPDATE trip_share_links SET revoked_at = UTC_TIMESTAMP() WHERE trip_id = :trip AND revoked_at IS NULL');
+        $stmt->execute(['trip' => $tripId]);
         // New owner: trips.user_id + their row becomes 'owner'.
         // Old owner stays on the trip as an editor. Exactly one owner remains.
         $stmt = $pdo->prepare('UPDATE trips SET user_id = :new_owner WHERE id = :id');

@@ -247,6 +247,9 @@ $statusLabels = [
             <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>" class="logout-link">Booking references</a>
             <a href="/customer/trips/reminders.php?id=<?= (int) $tripId ?>" class="logout-link">Reminders</a>
             <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
+            <?php if ($canManageTrip): ?>
+                <a href="/customer/trips/share_links.php?id=<?= (int) $tripId ?>" class="logout-link">Share links</a>
+            <?php endif; ?>
         </header>
 
         <section class="trip-hero">
