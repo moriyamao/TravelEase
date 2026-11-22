@@ -314,7 +314,7 @@ $statusLabels = [
             <?php if ($canEditItinerary): ?>
             <?php
             $planReview = $_SESSION['plan_review'][$tripId] ?? null;
-            if (is_array($planReview) && $planReview['created'] <= time() - PLAN_REVIEW_TTL) {
+            if (is_array($planReview) && ($planReview['created'] <= time() - PLAN_REVIEW_TTL || !is_string($planReview['id'] ?? null))) {
                 unset($_SESSION['plan_review'][$tripId]);
                 $planReview = null;
             }
@@ -354,6 +354,7 @@ $statusLabels = [
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
                                         <input type="hidden" name="suggestion" value="<?= (int) $n ?>">
+                                        <input type="hidden" name="review_id" value="<?= htmlspecialchars($planReview['id'], ENT_QUOTES, 'UTF-8') ?>">
                                         <button type="submit">Apply</button>
                                     </form>
                                 </li>
@@ -373,6 +374,7 @@ $statusLabels = [
                         <?= csrf_field() ?>
                         <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
                         <input type="hidden" name="action" value="clear">
+                        <input type="hidden" name="review_id" value="<?= htmlspecialchars($planReview['id'], ENT_QUOTES, 'UTF-8') ?>">
                         <button type="submit" class="plan-review-clear">Clear suggestions</button>
                     </form>
                 <?php endif; ?>

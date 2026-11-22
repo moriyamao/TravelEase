@@ -1,8 +1,10 @@
 <?php
 /**
  * FR-28: ask the planning assistant to review a trip (owners and editors).
- * Results are kept in the session for 30 minutes and shown on the trip page;
- * nothing in the trip changes here. action=clear removes them.
+ * Results are kept in the session for 30 minutes with a random review ID and
+ * a server-only fingerprint of the trip data they were based on; nothing in
+ * the trip changes here. action=clear removes them, but only when the form's
+ * review ID matches the current review (an old tab cannot clear a newer one).
  */
 require_once __DIR__ . '/../../includes/session.php';
 require_once __DIR__ . '/../../config/database.php';
@@ -36,25 +38,20 @@ require_trip_permission($pdo, $tripId, 'edit_itinerary');
 $back = '/customer/trips/view.php?id=' . $tripId . '#plan-review';
 
 if ($action === 'clear') {
-    unset($_SESSION['plan_review'][$tripId]);
+    $current = $_SESSION['plan_review'][$tripId]['id'] ?? null;
+    $posted = $_POST['review_id'] ?? null;
+    if (is_string($current) && is_string($posted) && hash_equals($current, $posted)) {
+        unset($_SESSION['plan_review'][$tripId]);
+    } else {
+        $_SESSION['plan_review_error'][$tripId] = 'Those suggestions were already replaced or cleared.';
+    }
     header('Location: ' . $back);
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT name, destination, start_date, end_date, budget_currency, budget_amount, time_zone FROM trips WHERE id = :id');
-$stmt->execute(['id' => $tripId]);
-$trip = $stmt->fetch();
-$stmt = $pdo->prepare(
-    'SELECT i.id, i.item_date, i.item_time, i.end_time, i.title, i.category, i.estimated_cost, i.actual_cost,
-            tp.name AS place_name, tp.latitude AS place_lat, tp.longitude AS place_lon
-     FROM itinerary_items i
-     LEFT JOIN trip_places tp ON tp.id = i.place_id AND tp.trip_id = i.trip_id
-     WHERE i.trip_id = :trip_id
-     ORDER BY i.item_date ASC, ' . ITINERARY_DAY_ORDER_SQL
-);
-$stmt->execute(['trip_id' => $tripId]);
-$items = $stmt->fetchAll();
-
+$source = plan_review_source($pdo, $tripId);
+$trip = $source['trip'];
+$items = $source['items'];
 $warnings = itinerary_schedule_warnings($items, $trip['start_date'], $trip['end_date']);
 $pairs = itinerary_travel_pairs($items);
 foreach (itinerary_travel_warnings($pairs, cached_travel_estimates($pdo, $pairs)) as $warnedId => $list) {
@@ -77,7 +74,12 @@ if ($wait !== 0) {
 
 $result = run_plan_review($trip, $items, $warnings);
 if ($result['ok']) {
-    $_SESSION['plan_review'][$tripId] = ['created' => time(), 'review' => $result['review']];
+    $_SESSION['plan_review'][$tripId] = [
+        'id' => bin2hex(random_bytes(16)),
+        'created' => time(),
+        'fingerprint' => plan_review_fingerprint($source),
+        'review' => $result['review'],
+    ];
 } else {
     unset($_SESSION['plan_review'][$tripId]);
     $_SESSION['plan_review_error'][$tripId] = $result['error'];

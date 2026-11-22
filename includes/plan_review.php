@@ -31,10 +31,16 @@ function groq_json_request(array $messages, string $schemaName, array $schema, i
     $url = 'https://api.groq.com/openai/v1/chat/completions';
     $override = getenv('GROQ_API_URL') ?: '';
     if ($override !== '') {
+        // Test-only: a local HTTP stub under the PHP CLI or built-in server.
+        // Any other override (including other HTTPS hosts) is refused, so
+        // production always talks to Groq itself.
         $parts = parse_url($override);
-        $localTest = in_array(PHP_SAPI, ['cli', 'cli-server'], true)
-            && in_array($parts['host'] ?? '', ['127.0.0.1', 'localhost'], true) && ($parts['scheme'] ?? '') === 'http';
-        if (!$parts || (!$localTest && ($parts['scheme'] ?? '') !== 'https') || !empty($parts['user']) || !empty($parts['query'])) {
+        $localTest = is_array($parts) && in_array(PHP_SAPI, ['cli', 'cli-server'], true)
+            && ($parts['scheme'] ?? '') === 'http' && in_array($parts['host'] ?? '', ['127.0.0.1', 'localhost'], true)
+            && empty($parts['user']) && empty($parts['pass']) && empty($parts['query']) && empty($parts['fragment'])
+            && in_array($parts['path'] ?? '', ['', '/'], true);
+        if (!$localTest) {
+            error_log('TravelEase: GROQ_API_URL is set but is not a local test address; refusing to use it.');
             return ['ok' => false, 'error' => 'The planning assistant is not configured correctly.'];
         }
         $url = rtrim($override, '/') . '/openai/v1/chat/completions';
@@ -242,4 +248,54 @@ function run_plan_review(array $trip, array $items, array $warnings): array
         return ['ok' => false, 'error' => 'The planning assistant had no usable suggestions this time. Please try again later.'];
     }
     return ['ok' => true, 'review' => $review];
+}
+
+/**
+ * Load the source a review is based on: the relevant trip fields and, for
+ * every activity, the fields the review uses or depends on (times with seconds,
+ * order, costs, completion, updated_at) and its linked place. Inside the apply transaction pass $lock = true (after the
+ * trip lock) so the activities cannot change while they are compared.
+ * Only plan_review_context() decides what is sent to the AI.
+ * @return array{trip:array, items:array}
+ */
+function plan_review_source(PDO $pdo, int $tripId, bool $lock = false): array
+{
+    $stmt = $pdo->prepare('SELECT id, name, destination, start_date, end_date, status, budget_currency, budget_amount, time_zone
+                           FROM trips WHERE id = :id');
+    $stmt->execute(['id' => $tripId]);
+    $trip = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare(
+        'SELECT i.id, i.item_date, i.item_time, i.end_time, i.title, i.category, i.estimated_cost, i.actual_cost,
+                i.completed_at, i.updated_at, i.sort_order, i.place_id,
+                tp.name AS place_name, tp.latitude AS place_lat, tp.longitude AS place_lon
+         FROM itinerary_items i
+         LEFT JOIN trip_places tp ON tp.id = i.place_id AND tp.trip_id = i.trip_id
+         WHERE i.trip_id = :trip_id
+         ORDER BY i.item_date ASC, ' . ITINERARY_DAY_ORDER_SQL . ($lock ? ' FOR UPDATE' : '')
+    );
+    $stmt->execute(['trip_id' => $tripId]);
+    return ['trip' => $trip ?: [], 'items' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
+}
+
+/**
+ * Server-only fingerprint of a review's source: the relevant trip fields
+ * (destination, dates, status, time zone, currency, budget) and, for every
+ * activity, the fields the review depends on (date, raw start/end times, title,
+ * category, costs, completion, order, updated_at, linked place and its name and
+ * coordinates). Values are compared, so same-second edits are caught too.
+ * Fields never used for the review (notes, location text, assignee) are not
+ * included. It is never sent to the browser or the AI.
+ */
+function plan_review_fingerprint(array $source): string
+{
+    $trip = $source['trip'];
+    $tripPart = [$trip['destination'] ?? null, $trip['start_date'] ?? null, $trip['end_date'] ?? null, $trip['status'] ?? null,
+        $trip['time_zone'] ?? null, $trip['budget_currency'] ?? null, $trip['budget_amount'] ?? null];
+    $items = array_map(fn($i) => [
+        $i['id'], $i['item_date'], $i['item_time'], $i['end_time'], $i['title'], $i['category'],
+        $i['estimated_cost'], $i['actual_cost'], $i['completed_at'], $i['updated_at'], $i['sort_order'],
+        $i['place_id'], $i['place_name'], $i['place_lat'], $i['place_lon'],
+    ], $source['items']);
+    usort($items, fn($a, $b) => (int) $a[0] <=> (int) $b[0]);
+    return hash('sha256', json_encode([$tripPart, $items], JSON_UNESCAPED_UNICODE));
 }

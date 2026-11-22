@@ -1,9 +1,20 @@
 <?php
 /**
  * FR-29: apply ONE schedule suggestion from the current plan review, after
- * the owner or editor presses Apply. The change comes from the session (the
- * page only sends its number), is re-validated against the trip as it is now
- * under the trip lock, and is refused if the activity changed since the review.
+ * the owner or editor presses Apply.
+ *
+ * - The form must carry the current review's random ID; a stale tab from an
+ *   older review is refused without changing anything (and without touching
+ *   the newer review).
+ * - The change itself comes from the session (the page only sends its number).
+ * - Under the trip lock and with the trip's activities locked, the trip data
+ *   is fingerprinted again and must match the fingerprint taken when the
+ *   review was made; a change since to the relevant trip fields (destination,
+ *   dates, time zone, budget) or to any activity's times, title, category,
+ *   place, costs, completion or order, even within the same second, refuses
+ *   the apply and discards the whole review.
+ * - After a successful apply the review is discarded too, because the plan it
+ *   was based on has changed. Ask for a new review for more suggestions.
  */
 require_once __DIR__ . '/../../includes/session.php';
 require_once __DIR__ . '/../../config/database.php';
@@ -26,7 +37,8 @@ if (!is_string($token) || !csrf_verify($token)) {
 }
 $tripId = filter_var($_POST['trip_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 $index = filter_var($_POST['suggestion'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 20]]);
-if (!$tripId || $index === false || $index === null) {
+$postedReviewId = $_POST['review_id'] ?? null;
+if (!$tripId || $index === false || $index === null || !is_string($postedReviewId)) {
     http_response_code(400);
     exit('Invalid request.');
 }
@@ -34,21 +46,26 @@ if (!$tripId || $index === false || $index === null) {
 $pdo = get_db_connection();
 require_trip_permission($pdo, $tripId, 'edit_itinerary');
 $back = '/customer/trips/view.php?id=' . $tripId . '#plan-review';
-$review = $_SESSION['plan_review'][$tripId] ?? null;
-$suggestion = (is_array($review) && $review['created'] > time() - PLAN_REVIEW_TTL)
-    ? ($review['review']['schedule'][$index] ?? null) : null;
 
-/** Record the outcome, drop this suggestion so it cannot be applied twice, and go back. */
-function plan_apply_finish(int $tripId, int $index, string $key, string $message, string $back): void
-{
-    $_SESSION[$key][$tripId] = $message;
-    unset($_SESSION['plan_review'][$tripId]['review']['schedule'][$index]);
+$review = $_SESSION['plan_review'][$tripId] ?? null;
+if (!is_array($review) || !is_string($review['id'] ?? null) || !hash_equals($review['id'], $postedReviewId)) {
+    // Old tab or already used: leave any newer review exactly as it is.
+    $_SESSION['plan_review_error'][$tripId] = 'That suggestion is from an older or finished review. Use the current suggestions or ask for a new review.';
+    header('Location: ' . $back);
+    exit;
+}
+$suggestion = $review['created'] > time() - PLAN_REVIEW_TTL ? ($review['review']['schedule'][$index] ?? null) : null;
+if (!is_array($suggestion)) {
+    $_SESSION['plan_review_error'][$tripId] = 'That suggestion has expired. Ask for a new review.';
     header('Location: ' . $back);
     exit;
 }
 
-if (!is_array($suggestion)) {
-    $_SESSION['plan_review_error'][$tripId] = 'That suggestion has expired or was already used. Ask for a new review.';
+/** Record the outcome, discard this review (its basis has changed or it was used) and go back. */
+function plan_apply_finish(int $tripId, string $key, string $message, string $back): void
+{
+    $_SESSION[$key][$tripId] = $message;
+    unset($_SESSION['plan_review'][$tripId]);
     header('Location: ' . $back);
     exit;
 }
@@ -56,29 +73,26 @@ if (!is_array($suggestion)) {
 try {
     $pdo->beginTransaction();
     lock_trip_and_require_permission($pdo, $tripId, 'edit_itinerary');
-    $stmt = $pdo->prepare('SELECT start_date, end_date FROM trips WHERE id = :id');
-    $stmt->execute(['id' => $tripId]);
-    $trip = $stmt->fetch();
-    $stmt = $pdo->prepare('SELECT id, title, item_date, item_time, end_time, sort_order FROM itinerary_items
-                           WHERE id = :id AND trip_id = :trip FOR UPDATE');
-    $stmt->execute(['id' => $suggestion['item_id'], 'trip' => $tripId]);
-    $item = $stmt->fetch();
-    $current = $item ? [
-        $item['item_date'],
-        $item['item_time'] !== null ? substr($item['item_time'], 0, 5) : '',
-        $item['end_time'] !== null ? substr($item['end_time'], 0, 5) : '',
-    ] : null;
-    if ($current !== [$suggestion['from']['date'], $suggestion['from']['time'], $suggestion['from']['end']]) {
+    $source = plan_review_source($pdo, $tripId, true);
+    if (!hash_equals((string) ($review['fingerprint'] ?? ''), plan_review_fingerprint($source))) {
         $pdo->rollBack();
-        plan_apply_finish($tripId, $index, 'plan_review_error',
-            'That activity changed or was removed after the review, so the suggestion was not applied.', $back);
+        plan_apply_finish($tripId, 'plan_review_error',
+            'The trip changed after the review, so its suggestions were discarded. Ask for a new review.', $back);
+    }
+    $trip = $source['trip'];
+    $item = null;
+    foreach ($source['items'] as $row) {
+        if ((int) $row['id'] === (int) $suggestion['item_id']) {
+            $item = $row;
+            break;
+        }
     }
     $to = $suggestion['to'];
-    if (validate_item_date($to['date'], $trip['start_date'], $trip['end_date']) !== null
+    if ($item === null
+        || validate_item_date($to['date'], $trip['start_date'], $trip['end_date']) !== null
         || validate_item_time($to['time']) !== null || validate_item_end_time($to['time'], $to['end']) !== null) {
         $pdo->rollBack();
-        plan_apply_finish($tripId, $index, 'plan_review_error',
-            'That suggestion no longer fits the trip dates, so it was not applied.', $back);
+        plan_apply_finish($tripId, 'plan_review_error', 'That suggestion no longer fits the trip, so it was not applied.', $back);
     }
     // Moving to another day places it by that day's order, as the edit form does.
     $sortOrder = $to['date'] === $item['item_date'] ? (int) $item['sort_order']
@@ -102,4 +116,4 @@ try {
     header('Location: ' . $back);
     exit;
 }
-plan_apply_finish($tripId, $index, 'plan_review_notice', 'Updated “' . $item['title'] . '”.', $back);
+plan_apply_finish($tripId, 'plan_review_notice', 'Updated “' . $item['title'] . '”. Ask for a new review for more suggestions.', $back);

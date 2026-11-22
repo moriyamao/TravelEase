@@ -137,8 +137,8 @@ $updated = 'November 22, 2026';
                 budget and cost totals, and for each activity its title, date, start and end time, category, saved place name and
                 estimated cost, plus the app's own schedule warnings. Notes, comments, votes, expenses, booking references,
                 reminders and member names or emails are not sent. Groq returns budget tips, ideas and suggested time changes.
-                A time change is only made when someone with permission presses Apply on it, and it is refused if the activity
-                changed after the review. Suggestions are not saved; they disappear after 30 minutes. Each account can request up
+                A time change is only made when someone with permission presses Apply on it. It is refused if the trip or any of its
+                activities changed after the review, and applying one change ends that review. Suggestions are not saved; they disappear after 30 minutes. Each account can request up
                 to five reviews an hour.
             </p>
         </section>
