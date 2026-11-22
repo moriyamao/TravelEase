@@ -1,11 +1,11 @@
 <?php
 /**
- * FR-24 (booking references only): a trip's booking references.
+ * FR-24: booking references and private attachments.
  *
  * Every trip member sees the references their role may view
  * (list_trip_references applies the visibility rules). Owners and editors
  * add, edit and delete the references they can see (reference_action.php).
- * File attachments are not available yet: there is no private file storage.
+ * Attachments inherit reference visibility; downloads always pass the PHP guard.
  */
 require_once __DIR__ . '/../../includes/session.php';
 require_once __DIR__ . '/../../config/database.php';
@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
 require_once __DIR__ . '/../../includes/trip_references.php';
+require_once __DIR__ . '/../../includes/trip_documents.php';
 
 require_role(['customer']);
 
@@ -32,6 +33,7 @@ $stmt->execute(['id' => $tripId]);
 $trip = $stmt->fetch();
 
 $references = list_trip_references($pdo, $tripId, $tripRole, $userId);
+$documents = list_reference_documents($pdo, $references);
 
 // Editing is scoped to the visible list, so a hidden reference can't be opened by ID.
 $editing = null;
@@ -132,7 +134,7 @@ $renderFields = function () use ($e, $field, $editing): void {
         <p class="eyebrow"><?= $e($trip['name']) ?> &middot; <?= $e($trip['destination']) ?></p>
         <?php if ($notice): ?><p class="form-notice" role="status"><?= $e($notice) ?></p><?php endif; ?>
         <?php if ($error): ?><p class="form-errors" role="alert"><?= $e($error) ?></p><?php endif; ?>
-        <p class="reference-note">Keep flight, hotel and tour booking details in one place. File attachments are not available yet, so add a link to where the booking is stored instead.</p>
+        <p class="reference-note">Keep flight, hotel and tour booking details here. Attachments accept PDF, JPEG or PNG up to 2 MB and follow the reference's visibility. Downloads are files, not safety or authenticity checks.</p>
 
         <?php if ($canEdit && $editing): ?>
         <section class="reference-card" aria-labelledby="edit-heading" id="edit">
@@ -177,6 +179,36 @@ $renderFields = function () use ($e, $field, $editing): void {
                             <?php endif; ?>
                             <?php if ($link = $safeUrl($r['reference_url'])): ?>
                                 <p class="reference-link"><a href="<?= $e($link) ?>" target="_blank" rel="noopener noreferrer">Open booking</a></p>
+                            <?php endif; ?>
+                            <?php foreach ($documents[$r['id']] ?? [] as $document): ?>
+                                <div class="reference-actions">
+                                    <a href="/customer/trips/document_download.php?id=<?= (int) $document['id'] ?>">Download <?= $e($document['original_name']) ?></a>
+                                    <span><?= number_format($document['byte_size'] / 1024, 1) ?> KB</span>
+                                    <?php if ($canEdit): ?>
+                                        <form method="post" action="/customer/trips/document_action.php" class="inline-form" onsubmit="return confirm('Remove this attachment?');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                                            <input type="hidden" name="reference_id" value="<?= (int) $r['id'] ?>">
+                                            <input type="hidden" name="version" value="<?= (int) $r['version'] ?>">
+                                            <input type="hidden" name="document_id" value="<?= (int) $document['id'] ?>">
+                                            <button type="submit" class="link-danger">Remove attachment</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if ($canEdit && count($documents[$r['id']] ?? []) < 3): ?>
+                                <form method="post" action="/customer/trips/document_action.php" enctype="multipart/form-data" class="reference-form">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="upload">
+                                    <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                                    <input type="hidden" name="reference_id" value="<?= (int) $r['id'] ?>">
+                                    <input type="hidden" name="version" value="<?= (int) $r['version'] ?>">
+                                    <input type="hidden" name="MAX_FILE_SIZE" value="2097152">
+                                    <label for="document-<?= (int) $r['id'] ?>">Attach PDF, JPEG or PNG (2 MB maximum)</label>
+                                    <input id="document-<?= (int) $r['id'] ?>" name="document" type="file" accept="application/pdf,image/jpeg,image/png" required>
+                                    <button type="submit">Upload attachment</button>
+                                </form>
                             <?php endif; ?>
                             <?php if ($canEdit): ?>
                                 <div class="reference-actions">

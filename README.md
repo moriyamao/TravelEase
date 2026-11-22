@@ -16,7 +16,7 @@ This is a Mapúa University academic team project. The repository has progressed
 | Itineraries | Add, edit, and remove dated activities with optional time, location, notes, and costs |
 | Budgeting | Trip currency and budget, estimated/actual itinerary costs, totals, and remaining/over-budget display |
 | Shared expenses (FR-22/23) | Planned and actual itinerary costs by category, plus a separate expense ledger with equal or custom shares, settlement status, and balances by currency. Owners and editors manage the ledger. Receipt links are visible to trip members. |
-| Booking references (FR-24 metadata slice) | Owners and editors add, update and delete references with provider, confirmation code, dates, HTTPS link and pending/confirmed status. Visibility is all members, owner/editors, or creator/current owner. Attachments and downloads are not implemented. |
+| Booking references and documents (FR-24) | Owners and editors manage references and PDF/JPEG/PNG attachments up to 2 MB, stored in private Supabase Storage. Attachments inherit reference visibility: all members, owner/editors, or creator/current owner. Every download re-checks current membership and visibility. Removal ends access immediately; scheduled cleanup removes stored objects. |
 | Share links (FR-15) | Owners create expiring join links (verified customer sign-in and explicit confirmation, Viewer access) or sanitized view-only links (anyone holding the link). View-only links show destination, dates, time zone and itinerary dates/times/titles/locations only. No notes, member identities, costs, feedback, references or reminders. Links expire after 1 or 7 days and can be revoked. Ownership transfer or member removal revokes all current links. Joined members keep their role after a link expires; remove a member separately to end membership. |
 | Progress (FR-26) | Separate counts show completed activities, confirmed references visible to the current member, settled non-payer expense shares and that member's acknowledged due reminders. Empty categories show no items; no combined completion score is claimed. |
 | Notifications (FR-30) | Customer inbox with read/unread, dismiss/restore and an in-app opt-out. Invitations notify the invitee once per issue; role, comment, itinerary, place and expense updates notify other current customer members. Inbox visibility and unread counts follow current membership; private reference events are excluded. Removed members see only a generic access-removal message. Scheduled reminders use in-app notifications and optional reminder email; other trip events remain in-app. |
@@ -67,7 +67,7 @@ The scope evolved: the initial draft included agency bookings and payments; Phas
 
 ## Run locally
 
-Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`, `mbstring`, and `openssl`; AI support also needs `curl`. Google token verification needs outbound HTTPS and a correctly configured CA trust store. XAMPP can provide the database and PHP runtime.
+Use PHP 8.2 or later and a compatible MySQL/MariaDB database. Enable `pdo_mysql`, `mbstring`, and `openssl`; AI support and private documents need `curl`, and document validation needs `fileinfo`. Google token verification needs outbound HTTPS and a correctly configured CA trust store. XAMPP can provide the database and PHP runtime.
 
 1. Clone the repository and enter its root directory.
 2. Copy `.env.example` to `.env`. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, a long random `APP_SECRET`, `APP_ENV=development`, `APP_URL=http://localhost:8000`, and the verification-email settings below. Keep `.env` out of version control.
@@ -134,6 +134,20 @@ Production setup (no new paid service):
 Each worker invocation is bounded to 100 due candidates and three email attempts, with a database advisory lock preventing concurrent runs. Large backlogs drain over later runs. `php jobs/reminders.php --dry-run` counts existing due reminders without creating rows or sending mail; it still requires the correct database configuration. Tests may point the existing `BREVO_API_URL` override at a local fake endpoint; leave it unset in production.
 
 ## Security and testing
+
+### Private travel documents (FR-24 / NFR-06)
+
+Apply `database/migration_027_add_trip_documents.sql` after 026 **before deployment**. The migration creates two tables with 2 primary keys and 3 foreign keys; fresh installs include them in `schema.sql`. It does not alter existing user or trip records. Create a **private** Supabase Storage bucket named `travelease-documents`, restrict it to 2 MB and MIME types `application/pdf,image/jpeg,image/png`, and do not add public or anonymous storage policies. Aiven remains the application database; Supabase Data API and GitHub integration are not required.
+
+Set `SUPABASE_URL` to the project's HTTPS URL, `SUPABASE_SECRET_KEY` to a server-only `sb_secret_...` key, and `SUPABASE_STORAGE_BUCKET=travelease-documents`. Never put this key in JavaScript, Git, logs or chat. No SDK or Composer dependency is added. The private Storage REST API is used over HTTPS with certificate verification, no redirects, bounded responses and 3-second connect / 10-second request timeouts. Upload checks the bucket is still private. A local HTTP stub is accepted only on `127.0.0.1` in development under the PHP CLI/built-in server; production rejects that URL.
+
+Open **Trip > Booking references**. Owners/editors can attach at most 3 files per visible reference, 20 per trip, with 30 upload attempts per account per hour. The server checks actual type, extension, image dimensions, size and uploaded-file origin rather than trusting the browser's MIME header. Filenames are escaped; object names contain 32 random bytes and no original filename. Downloads go through PHP, re-read trip membership/visibility under a shared trip lock, verify byte count and SHA-256, and force a non-cacheable attachment download. No signed/public storage URLs are issued. File-type validation is not malware scanning; no inline document preview or claim of file safety is made.
+
+Attachments follow their reference's visibility, including after ownership/role changes. Public share links, support, AI and non-member administrators do not get attachments. JSON account exports include only currently visible attachment metadata, not file bytes, object keys or hashes; download needed files separately.
+
+Deleting an attachment ends app access immediately. Deleting its reference, trip or uploader also invalidates access and retains the object key in a cleanup record. The existing five-minute GitHub workflow calls `/jobs/documents.php` with the existing `REMINDER_JOB_SECRET`; there is no new scheduler or job secret. Each run handles up to 3 objects; failed deletions retry in later runs. Unfinished uploads older than one hour are also retired, so an interrupted external write cannot lose its cleanup key. Pending/retired metadata and stored objects remain until cleanup succeeds; outages and delayed schedules can postpone physical deletion. Active ready files are never removed by this cleanup. Keep this Supabase project and bucket unchanged until its cleanup queue is empty.
+
+`php jobs/documents.php --dry-run` only counts eligible cleanup records and makes no provider requests or writes. Configure `fileinfo` and `curl` in local PHP; the PHP Docker image includes fileinfo and already installs curl. If a provider is unavailable, reference metadata remains editable and downloads show a recoverable error. Use **Actions > Deliver trip reminders > Run workflow** after deployment to check both job steps.
 
 ### Share links
 

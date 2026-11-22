@@ -12,6 +12,7 @@
 require_once __DIR__ . '/trip_membership.php';
 require_once __DIR__ . '/itinerary_validation.php';
 require_once __DIR__ . '/trip_references.php';
+require_once __DIR__ . '/trip_documents.php';
 require_once __DIR__ . '/notifications.php';
 
 function account_export_rows(PDO $pdo, string $sql, array $params): array
@@ -64,9 +65,13 @@ function build_account_export(PDO $pdo, int $userId): array
             unset($expense['id'], $expense['amount_minor']);
         }
         unset($expense);
+        $visibleReferences = list_trip_references($pdo, $tripId, $role, $userId);
+        $documents = $user['role'] === 'customer' ? list_reference_documents($pdo, $visibleReferences) : [];
         $references = array_map(fn($r) => array_intersect_key($r, array_flip([
             'title', 'kind', 'provider', 'confirmation_code', 'start_date', 'end_date', 'reference_url', 'status', 'visibility', 'created_at',
-        ])), list_trip_references($pdo, $tripId, $role, $userId));
+        ])) + ['attachments' => array_map(fn($d) => array_intersect_key($d, array_flip([
+            'original_name', 'mime_type', 'byte_size', 'created_at',
+        ])), $documents[$r['id']] ?? [])], $visibleReferences);
         $memberCount = (int) account_export_rows($pdo,
             'SELECT COUNT(*) AS c FROM trip_memberships WHERE trip_id = :trip', ['trip' => $tripId])[0]['c'];
 
