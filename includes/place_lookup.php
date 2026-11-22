@@ -86,11 +86,13 @@ function normalize_place_results(array $data): array
 }
 
 /** Fixed Geoapify paths; the optional base override is for local stub tests. */
-function fetch_place_results(string $path, array $params): array
+/**
+ * One GET to the configured Geoapify-compatible API. Returns the decoded JSON
+ * and the HTTP status; throws on transport failure, bad configuration or a
+ * non-JSON body. The URL is never logged (it contains the API key).
+ */
+function geoapify_request(string $path, array $params): array
 {
-    if (!in_array($path, ['/v1/geocode/search', '/v2/places'], true)) {
-        throw new InvalidArgumentException('Invalid place lookup.');
-    }
     $base = rtrim(getenv('GEOAPIFY_API_URL') ?: 'https://api.geoapify.com', '/');
     $parts = parse_url($base);
     $localTest = in_array(PHP_SAPI, ['cli', 'cli-server'], true)
@@ -120,16 +122,29 @@ function fetch_place_results(string $path, array $params): array
     $success = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
     curl_close($curl);
-    if ($success === false || $status !== 200) {
-        // Do not log the URL: it contains the API key and search text.
-        error_log('TravelEase: place provider request failed (HTTP ' . $status . ').');
+    if ($success === false) {
+        error_log('TravelEase: place provider request failed (no response).');
         throw new UnexpectedValueException('Place search is unavailable. Please try again later or add the place manually.');
     }
-    $data = json_decode($body, true, 64, JSON_THROW_ON_ERROR);
-    if (!is_array($data)) {
+    $data = json_decode($body, true, 64);
+    return ['status' => $status, 'data' => is_array($data) ? $data : null];
+}
+
+function fetch_place_results(string $path, array $params): array
+{
+    if (!in_array($path, ['/v1/geocode/search', '/v2/places'], true)) {
+        throw new InvalidArgumentException('Invalid place lookup.');
+    }
+    $response = geoapify_request($path, $params);
+    if ($response['status'] !== 200) {
+        // Do not log the URL: it contains the API key and search text.
+        error_log('TravelEase: place provider request failed (HTTP ' . $response['status'] . ').');
+        throw new UnexpectedValueException('Place search is unavailable. Please try again later or add the place manually.');
+    }
+    if ($response['data'] === null) {
         throw new UnexpectedValueException('Invalid place provider response.');
     }
-    return normalize_place_results($data);
+    return normalize_place_results($response['data']);
 }
 
 /** Fifteen-minute public-result cache plus at most one provider start/second. */
