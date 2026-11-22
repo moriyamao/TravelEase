@@ -41,9 +41,12 @@ $escalations = $stmt->fetchAll();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support Queue — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
     <style>
         .escalation-row { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 1rem; background: var(--paper-white); overflow: hidden; }
         .escalation-summary { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.1rem; cursor: pointer; }
@@ -63,15 +66,12 @@ $escalations = $stmt->fetchAll();
     </style>
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Support Queue — <?= $name ?></h1>
-            <div class="header-actions">
-                <a href="/staff/dashboard.php" class="logout-link">Dashboard</a>
-                <a href="/profile.php" class="logout-link">Profile</a>
-                <a href="/auth/logout.php" class="logout-link">Sign out</a>
-            </div>
-        </header>
+    <?php $navCurrent = 'queue'; require __DIR__ . '/../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <div class="page-head">
+            <p class="eyebrow">Signed in as <?= $name ?></p>
+            <h1 class="page-title">Support queue</h1>
+        </div>
 
         <div class="view-tabs">
             <a href="/staff/escalations.php?view=open" class="<?= $view === 'open' ? 'active' : '' ?>">Open</a>

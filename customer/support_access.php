@@ -95,17 +95,21 @@ $e = fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Share a trip with support — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/support-access.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Share a trip with support</h1>
-            <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
-        </header>
+    <?php $navCurrent = null; require __DIR__ . '/../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <div class="page-head">
+            <p class="eyebrow">Support</p>
+            <h1 class="page-title">Share a trip with support</h1>
+        </div>
         <?php if ($notice): ?><p class="form-notice" role="status"><?= $e($notice) ?></p><?php endif; ?>
         <?php if ($error): ?><p class="form-errors" role="alert"><?= $e($error) ?></p><?php endif; ?>
 

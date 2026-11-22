@@ -1,14 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">TravelEase route mark</title>
-  <desc id="desc">A travel route shaped like the letter T inside a navy circular stamp.</desc>
-  <circle cx="256" cy="256" r="246" fill="#152b43"/>
-  <circle cx="256" cy="256" r="207" fill="none" stroke="#f6f2e8" stroke-opacity=".24" stroke-width="5"/>
-  <path d="M145 168H367" fill="none" stroke="#f6f2e8" stroke-width="31" stroke-linecap="round"/>
-  <path d="M256 173V290c0 68 34 103 100 108" fill="none" stroke="#bd4d28" stroke-width="31" stroke-linecap="round"/>
-  <circle cx="145" cy="168" r="19" fill="#f6f2e8"/>
-  <circle cx="367" cy="168" r="19" fill="#f6f2e8"/>
-  <circle cx="256" cy="290" r="20" fill="#f6f2e8" stroke="#bd4d28" stroke-width="12"/>
-  <path d="m351 362 56 41-63 23 12-29Z" fill="#f6f2e8"/>
-  <path d="M80 256a176 176 0 0 0 31 97" fill="none" stroke="#bd4d28" stroke-width="14" stroke-linecap="round"/>
-  <circle cx="112" cy="355" r="12" fill="#bd4d28"/>
+  <title id="title">TravelEase mark</title>
+  <desc id="desc">A smooth ease-in-out route curving from a starting point to a rust-red map pin, on a navy tile.</desc>
+  <rect width="512" height="512" rx="120" fill="#152b43"/>
+  <path d="M112 388C236 388 238 252 352 252" fill="none" stroke="#f6f2e8" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="112" cy="388" r="30" fill="#f6f2e8"/>
+  <path d="M370 290C336 244 306 214 306 166a64 64 0 1 1 128 0c0 48-30 78-64 124Z" fill="#bd4d28"/>
+  <circle cx="370" cy="166" r="25" fill="#f6f2e8"/>
 </svg>

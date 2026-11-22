@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../includes/travel_time.php';
 require_once __DIR__ . '/../../includes/trip_references.php';
 require_once __DIR__ . '/../../includes/trip_progress.php';
 require_once __DIR__ . '/../../includes/plan_review.php';
+require_once __DIR__ . '/../../includes/notifications.php';
 
 require_role(['customer']);
 
@@ -223,583 +224,734 @@ $statusLabels = [
     'completed' => 'Completed',
     'cancelled' => 'Cancelled',
 ];
+// ---- Presentation helpers (redesign). No data access beyond the header's unread count. ----
+$h = fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+$money = fn($amount) => $h($trip['budget_currency']) . ' ' . number_format((float) $amount, 2);
+$startTs = strtotime($trip['start_date']);
+$endTs = strtotime($trip['end_date']);
+$tripLength = (int) round(($endTs - $startTs) / 86400) + 1;
+$tripDates = date('Y-m', $startTs) === date('Y-m', $endTs)
+    ? date('M j', $startTs) . ' – ' . date('j, Y', $endTs)
+    : (date('Y', $startTs) === date('Y', $endTs) ? date('M j', $startTs) . ' – ' . date('M j, Y', $endTs) : date('M j, Y', $startTs) . ' – ' . date('M j, Y', $endTs));
+$activityDone = (int) $progress['activities']['done'];
+$activityTotal = (int) $progress['activities']['total'];
+$budgetAmount = $trip['budget_amount'] !== null ? (float) $trip['budget_amount'] : null;
+$budgetUsed = $budgetAmount ? min(100, (int) round($totalActual / $budgetAmount * 100)) : null;
+$unreadNotifications = count_unread_notifications($pdo, (int) current_user_id());
+$navCurrent = $trip['archived_at'] !== null ? 'archived' : 'trips';
+$roleLabel = ucfirst($tripRole);
+$roleHelp = [
+    'owner' => 'You can edit everything and manage members.',
+    'editor' => 'You can edit the itinerary.',
+    'commenter' => 'You can vote and comment.',
+    'viewer' => 'You can view this trip.',
+][$tripRole] ?? '';
+$planOpen = $recommendations || $recommendationError;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?> — TravelEase</title>
+    <title><?= $h($trip['name']) ?> — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/references.css">
     <link rel="stylesheet" href="/assets/css/auth.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/trip.css">
 </head>
-<body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>My Trips</h1>
-            <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
-            <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>" class="logout-link">Places &amp; map</a>
-            <a href="/customer/trips/expenses.php?id=<?= (int) $tripId ?>" class="logout-link">Expenses</a>
-            <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>" class="logout-link">Booking references</a>
-            <a href="/customer/trips/reminders.php?id=<?= (int) $tripId ?>" class="logout-link">Reminders</a>
-            <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>" class="logout-link">Activity history</a>
-            <a href="/customer/dashboard.php?archived=1" class="logout-link">Archived trips</a>
-            <?php if ($canManageTrip): ?>
-                <a href="/customer/trips/share_links.php?id=<?= (int) $tripId ?>" class="logout-link">Share links</a>
-            <?php endif; ?>
-        </header>
+<body class="app-body">
+    <?php require __DIR__ . '/../../includes/partials/app_header.php'; ?>
+
+    <main class="app-page trip-page" id="main-content" tabindex="-1">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="/customer/dashboard.php<?= $trip['archived_at'] !== null ? '?archived=1' : '' ?>"><?= $trip['archived_at'] !== null ? 'Archived trips' : 'My trips' ?></a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page"><?= $h($trip['name']) ?></span>
+        </nav>
 
         <?php if ($trip['archived_at'] !== null): ?>
-            <p role="status">This trip is archived. Its status, permissions and reminders are unchanged. The owner can restore it below.</p>
+            <p class="notice notice-warning" role="status">This trip is archived. Its status, permissions and reminders are unchanged. The owner can restore it from Trip settings.</p>
         <?php endif; ?>
-        <section class="trip-hero">
-            <div>
-                <p class="eyebrow">Journey dossier &middot; <span class="status-badge status-<?= htmlspecialchars($trip['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusLabels[$trip['status']] ?? $trip['status'], ENT_QUOTES, 'UTF-8') ?></span></p>
-                <h1><?= htmlspecialchars($trip['name'], ENT_QUOTES, 'UTF-8') ?></h1>
-                <p class="trip-hero-destination"><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></p>
+
+        <section class="trip-hero" aria-labelledby="trip-title">
+            <div class="trip-hero-main">
+                <p class="trip-hero-tags">
+                    <span class="chip chip-status-<?= $h($trip['status']) ?>"><?= $h($statusLabels[$trip['status']] ?? $trip['status']) ?></span>
+                    <span class="chip chip-dark">You're <?= $tripRole === 'owner' ? 'the owner' : 'a ' . $h(strtolower($roleLabel)) ?></span>
+                </p>
+                <h1 id="trip-title"><?= $h($trip['name']) ?></h1>
+                <p class="trip-hero-destination"><?= $h($trip['destination']) ?></p>
             </div>
-            <p class="trip-hero-date"><?= htmlspecialchars(date('M j, Y', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?><br>to <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?><br><span class="trip-zone">Times in <?= htmlspecialchars(str_replace('_', ' ', $trip['time_zone']), ENT_QUOTES, 'UTF-8') ?></span></p>
+            <dl class="trip-hero-facts">
+                <div><dt>Dates</dt><dd><?= $h($tripDates) ?></dd></div>
+                <div><dt>Length</dt><dd><?= $tripLength ?> <?= $tripLength === 1 ? 'day' : 'days' ?></dd></div>
+                <div><dt>Times shown in</dt><dd><?= $h(str_replace('_', ' ', $trip['time_zone'])) ?></dd></div>
+            </dl>
+            <?php if ($canManageTrip): ?>
+                <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-light trip-hero-edit">Edit trip</a>
+            <?php endif; ?>
+        </section>
+
+        <nav class="trip-tabs" aria-label="Trip sections">
+            <a href="#itinerary" aria-current="page">Itinerary</a>
+            <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>">Places &amp; map</a>
+            <a href="/customer/trips/expenses.php?id=<?= (int) $tripId ?>">Expenses</a>
+            <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>">Bookings</a>
+            <a href="/customer/trips/reminders.php?id=<?= (int) $tripId ?>">Reminders</a>
+            <a href="/customer/trips/history.php?id=<?= (int) $tripId ?>">History</a>
+            <?php if ($canManageTrip): ?>
+                <a href="/customer/trips/share_links.php?id=<?= (int) $tripId ?>">Share links</a>
+            <?php endif; ?>
+        </nav>
+
+        <section class="trip-summary" aria-label="Trip at a glance">
+            <div class="summary-tile">
+                <span class="summary-label">Activities done</span>
+                <strong><?= $activityDone ?><small> / <?= $activityTotal ?></small></strong>
+                <?php if ($activityTotal > 0): ?><div class="meter" aria-hidden="true"><span style="width: <?= (int) round($activityDone / $activityTotal * 100) ?>%"></span></div><?php endif; ?>
+            </div>
+            <div class="summary-tile">
+                <span class="summary-label">Spent so far</span>
+                <strong><?= $money($totalActual) ?></strong>
+                <?php if ($budgetUsed !== null): ?>
+                    <div class="meter<?= $totalActual > $budgetAmount ? ' is-over' : '' ?>" aria-hidden="true"><span style="width: <?= $budgetUsed ?>%"></span></div>
+                    <span class="summary-sub">of <?= $money($budgetAmount) ?> budget</span>
+                <?php else: ?>
+                    <span class="summary-sub">No total budget set</span>
+                <?php endif; ?>
+            </div>
+            <div class="summary-tile">
+                <span class="summary-label">Travelers</span>
+                <strong><?= count($members) ?></strong>
+                <span class="summary-sub"><a href="#members">See who's coming</a></span>
+            </div>
+            <div class="summary-tile<?= $scheduleWarnings ? ' summary-warn' : '' ?>">
+                <span class="summary-label">Schedule checks</span>
+                <strong><?= count($scheduleWarnings) ?></strong>
+                <span class="summary-sub"><?= $scheduleWarnings ? (count($scheduleWarnings) === 1 ? 'activity needs a look' : 'activities need a look') : 'No warnings' ?></span>
+            </div>
         </section>
 
         <div class="trip-layout">
-
-        <section class="itinerary-section" id="itinerary">
-            <h2>Itinerary</h2>
-
-            <?php if ($canEditItinerary): ?>
-            <section class="trip-ideas" aria-labelledby="trip-ideas-title">
-                <div class="trip-ideas-heading">
-                    <div>
-                        <p class="eyebrow">Planning inspiration</p>
-                        <h3 id="trip-ideas-title">Ideas for <?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></h3>
-                        <p>Generate a few AI suggestions, edit one, then add it to your itinerary. Place details may be inaccurate; check them before you go. Your destination, dates, budget, interests, and pace are sent to the AI service for this request.</p>
+            <div class="trip-main">
+                <section class="itinerary-panel" id="itinerary" aria-labelledby="itinerary-title" tabindex="-1">
+                    <div class="panel-head">
+                        <div>
+                            <h2 id="itinerary-title" class="section-title">Itinerary</h2>
+                            <p class="section-lead"><?= count($items) === 1 ? '1 activity' : count($items) . ' activities' ?> across <?= count($itemsByDate) === 1 ? '1 day' : count($itemsByDate) . ' days' ?></p>
+                        </div>
+                        <?php if ($canEditItinerary): ?>
+                            <a class="btn-primary" href="#add-activity" data-open-details="add-activity">+ Add activity</a>
+                        <?php endif; ?>
                     </div>
-                    <form class="trip-ideas-request" method="post" action="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="recommend">
-                        <label for="trip-interests">What do you enjoy?</label>
-                        <input id="trip-interests" name="interests" maxlength="120" placeholder="Art, food, nature..." value="<?= htmlspecialchars($interests, ENT_QUOTES, 'UTF-8') ?>">
-                        <label for="trip-pace">Travel pace</label>
-                        <select id="trip-pace" name="pace">
-                            <option value="relaxed" <?= $pace === 'relaxed' ? 'selected' : '' ?>>Relaxed</option>
-                            <option value="balanced" <?= $pace === 'balanced' ? 'selected' : '' ?>>Balanced</option>
-                            <option value="packed" <?= $pace === 'packed' ? 'selected' : '' ?>>Packed</option>
-                        </select>
-                        <button type="submit" class="btn-primary">Suggest activities</button>
-                    </form>
-                </div>
-                <?php if ($recommendationError): ?>
-                    <p class="form-errors" role="alert"><?= htmlspecialchars($recommendationError, ENT_QUOTES, 'UTF-8') ?></p>
-                <?php endif; ?>
-                <?php if ($recommendations): ?>
-                    <div class="trip-ideas-grid">
-                        <?php foreach ($recommendations as $index => $idea): ?>
-                            <form class="trip-idea-card" method="post" action="/customer/trips/itinerary_add.php">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                <p class="eyebrow">AI suggestion <?= $index + 1 ?></p>
-                                <label for="idea-title-<?= $index ?>">Activity</label>
-                                <input id="idea-title-<?= $index ?>" name="title" maxlength="150" required value="<?= htmlspecialchars($idea['title'], ENT_QUOTES, 'UTF-8') ?>">
-                                <label for="idea-date-<?= $index ?>">Day</label>
-                                <input id="idea-date-<?= $index ?>" type="date" name="item_date" min="<?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>" max="<?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>" required value="<?= htmlspecialchars($idea['date'], ENT_QUOTES, 'UTF-8') ?>">
-                                <label for="idea-location-<?= $index ?>">Place</label>
-                                <input id="idea-location-<?= $index ?>" name="location" maxlength="150" value="<?= htmlspecialchars($idea['location'], ENT_QUOTES, 'UTF-8') ?>">
-                                <label for="idea-notes-<?= $index ?>">Why this place?</label>
-                                <textarea id="idea-notes-<?= $index ?>" name="notes" rows="2" maxlength="2000"><?= htmlspecialchars($idea['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
-                                <button type="submit">Add to itinerary</button>
-                            </form>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </section>
-            <?php endif; ?>
 
-            <?php if ($canEditItinerary): ?>
-            <?php
-            $planReview = $_SESSION['plan_review'][$tripId] ?? null;
-            if (is_array($planReview) && ($planReview['created'] <= time() - PLAN_REVIEW_TTL || !is_string($planReview['id'] ?? null))) {
-                unset($_SESSION['plan_review'][$tripId]);
-                $planReview = null;
-            }
-            $planNotice = $_SESSION['plan_review_notice'][$tripId] ?? null;
-            $planError = $_SESSION['plan_review_error'][$tripId] ?? null;
-            unset($_SESSION['plan_review_notice'][$tripId], $_SESSION['plan_review_error'][$tripId]);
-            $planTime = fn(array $slot) => date('D, M j', strtotime($slot['date'])) . ($slot['time'] !== '' ? ' ' . $slot['time'] . ($slot['end'] !== '' ? '–' . $slot['end'] : '') : ', any time');
-            ?>
-            <section class="plan-review" id="plan-review" aria-labelledby="plan-review-title">
-                <div class="plan-review-heading">
-                    <div>
-                        <p class="eyebrow">Planning assistant</p>
-                        <h3 id="plan-review-title">Review my plan</h3>
-                        <p>Get budget tips, schedule fixes and ideas for this trip. Nothing changes until you press Apply on a suggestion.</p>
-                    </div>
-                    <form method="post" action="/customer/trips/plan_review.php" class="plan-review-request">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
-                        <input type="hidden" name="action" value="review">
-                        <button type="submit">Review my plan</button>
-                    </form>
-                </div>
-                <p class="plan-review-privacy">Sent to the AI service: destination, dates, budget, and each activity's title, date, times, category, place name and estimated cost. Notes, comments, expenses, booking references, reminders and member details are not sent. Up to <?= PLAN_REVIEW_LIMIT_PER_HOUR ?> reviews an hour.</p>
-                <?php if ($planNotice): ?><p class="form-notice" role="status"><?= htmlspecialchars($planNotice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-                <?php if ($planError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($planError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-                <?php if ($planReview): ?>
-                    <?php $r = $planReview['review']; ?>
-                    <?php if ($r['schedule']): ?>
-                        <h4>Schedule</h4>
-                        <ul class="plan-review-list">
-                            <?php foreach ($r['schedule'] as $n => $s): ?>
-                                <li>
-                                    <strong><?= htmlspecialchars($s['title'], ENT_QUOTES, 'UTF-8') ?></strong>:
-                                    <?= htmlspecialchars($planTime($s['from']), ENT_QUOTES, 'UTF-8') ?> &rarr; <strong><?= htmlspecialchars($planTime($s['to']), ENT_QUOTES, 'UTF-8') ?></strong>
-                                    <p><?= htmlspecialchars($s['reason'], ENT_QUOTES, 'UTF-8') ?></p>
-                                    <form method="post" action="/customer/trips/plan_apply.php" class="inline-form">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
-                                        <input type="hidden" name="suggestion" value="<?= (int) $n ?>">
-                                        <input type="hidden" name="review_id" value="<?= htmlspecialchars($planReview['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <button type="submit">Apply</button>
-                                    </form>
-                                </li>
+                    <?php if (!empty($itineraryErrors)): ?>
+                        <ul class="form-errors" role="alert">
+                            <?php foreach ($itineraryErrors as $error): ?>
+                                <li><?= $h($error) ?></li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>
-                    <?php foreach (['budget' => 'Budget', 'ideas' => 'Ideas'] as $planKey => $planHeading): ?>
-                        <?php if ($r[$planKey]): ?>
-                            <h4><?= $planHeading ?></h4>
-                            <ul class="plan-review-list">
-                                <?php foreach ($r[$planKey] as $tip): ?><li><?= htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') ?></li><?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                    <p class="plan-review-privacy">AI suggestions can be wrong. Check times, prices and opening hours yourself. Suggestions disappear after 30 minutes.</p>
-                    <form method="post" action="/customer/trips/plan_review.php" class="inline-form">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
-                        <input type="hidden" name="action" value="clear">
-                        <input type="hidden" name="review_id" value="<?= htmlspecialchars($planReview['id'], ENT_QUOTES, 'UTF-8') ?>">
-                        <button type="submit" class="plan-review-clear">Clear suggestions</button>
-                    </form>
-                <?php endif; ?>
-            </section>
-            <?php endif; ?>
+                    <?php if ($travelNotice): ?>
+                        <p class="notice notice-info" role="status"><?= $h($travelNotice) ?></p>
+                    <?php endif; ?>
+                    <?php if ($scheduleWarnings): ?>
+                        <p class="notice notice-warning" role="status"><?= count($scheduleWarnings) === 1 ? '1 activity has a schedule warning.' : count($scheduleWarnings) . ' activities have schedule warnings.' ?> Warnings do not block saving.</p>
+                    <?php endif; ?>
+                    <?php if ($uncheckedTravel > 0): ?>
+                        <form method="post" action="/customer/trips/travel_check.php" class="notice notice-info travel-check-row">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                            <span><?= $uncheckedTravel === 1 ? '1 pair of back-to-back activities at different places has' : $uncheckedTravel . ' pairs of back-to-back activities at different places have' ?> not been checked for travel time.</span>
+                            <button type="submit" class="btn-secondary btn-sm">Check travel times</button>
+                        </form>
+                    <?php endif; ?>
 
-            <?php if (!empty($itineraryErrors)): ?>
-                <ul class="form-errors" role="alert">
-                    <?php foreach ($itineraryErrors as $error): ?>
-                        <li><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
-
-            <?php if ($travelNotice): ?>
-                <p class="travel-notice" role="status"><?= htmlspecialchars($travelNotice, ENT_QUOTES, 'UTF-8') ?></p>
-            <?php endif; ?>
-            <?php if ($uncheckedTravel > 0): ?>
-                <form method="post" action="/customer/trips/travel_check.php" class="travel-check">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
-                    <span><?= $uncheckedTravel === 1 ? '1 pair of back-to-back activities at different places has' : $uncheckedTravel . ' pairs of back-to-back activities at different places have' ?> not been checked for travel time.</span>
-                    <button type="submit">Check travel times</button>
-                </form>
-            <?php endif; ?>
-            <?php if ($scheduleWarnings): ?>
-                <p class="schedule-summary" role="status"><?= count($scheduleWarnings) === 1 ? '1 activity has a schedule warning.' : count($scheduleWarnings) . ' activities have schedule warnings.' ?> Warnings do not block saving.</p>
-            <?php endif; ?>
-
-            <?php if (empty($itemsByDate)): ?>
-                <p class="empty-state">No itinerary items yet.<?= $canEditItinerary ? ' Add your first stop below.' : '' ?></p>
-            <?php else: ?>
-                <?php foreach ($itemsByDate as $date => $dayItems): ?>
-                    <div class="itinerary-day">
-                        <h3 class="itinerary-day-heading"><?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?></h3>
-                        <ul class="itinerary-list">
-                            <?php foreach ($dayItems as $dayIndex => $item): ?>
-                                <li class="itinerary-item<?= $item['completed_at'] !== null ? ' is-done' : '' ?>" id="item-<?= (int) $item['id'] ?>">
-                                    <div class="itinerary-item-main">
-                                        <?php if (!empty($item['item_time'])): ?>
-                                            <span class="itinerary-time"><?= htmlspecialchars(substr($item['item_time'], 0, 5), ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php endif; ?>
-                                        <span class="itinerary-title"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php if (!empty($item['location'])): ?>
-                                            <span class="itinerary-location">— <?= htmlspecialchars($item['location'], ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <p class="itinerary-meta">
-                                        <?php if (!empty($item['item_time']) && !empty($item['end_time'])): ?>
-                                            <span><?= htmlspecialchars(substr($item['item_time'], 0, 5) . '–' . substr($item['end_time'], 0, 5), ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php endif; ?>
-                                        <span class="itinerary-category"><?= htmlspecialchars(ITINERARY_CATEGORIES[$item['category'] ?? ''] ?? 'Uncategorized', ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php if ($item['place_name'] !== null): ?>
-                                            <span>At <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>#activity-<?= (int) $item['id'] ?>"><?= htmlspecialchars($item['place_name'], ENT_QUOTES, 'UTF-8') ?></a><?php if ($item['place_lat'] !== null && $item['place_lon'] !== null): ?> &middot; <a href="https://www.openstreetmap.org/directions?route=%3B<?= rawurlencode($item['place_lat'] . ',' . $item['place_lon']) ?>" target="_blank" rel="noopener noreferrer">Directions</a><?php endif; ?></span>
-                                        <?php endif; ?>
-                                        <?php if ($item['assignee_id'] !== null): ?>
-                                            <span>Assigned to <?= htmlspecialchars($item['assignee_name'] ?? 'a deleted user', ENT_QUOTES, 'UTF-8') ?><?= in_array((int) $item['assignee_id'], $memberIds, true) ? '' : ' (no longer on this trip)' ?></span>
-                                        <?php endif; ?>
-                                        <?php if ($item['completed_at'] !== null): ?>
-                                            <span class="itinerary-done">Done<?= $item['completed_by_name'] !== null ? ' · by ' . htmlspecialchars($item['completed_by_name'], ENT_QUOTES, 'UTF-8') : '' ?></span>
-                                        <?php endif; ?>
-                                    </p>
-                                    <?php if (!empty($scheduleWarnings[(int) $item['id']])): ?>
-                                        <ul class="itinerary-warnings">
-                                            <?php foreach ($scheduleWarnings[(int) $item['id']] as $warning): ?>
-                                                <?php if ($warning['type'] === 'outside_trip'): ?>
-                                                    <li>Outside the trip dates. Move it to a day within the trip.</li>
-                                                <?php elseif ($warning['type'] === 'overlap'): ?>
-                                                    <li>Overlaps with &ldquo;<?= htmlspecialchars((string) ($itemTitles[$warning['other_id']] ?? 'another activity'), ENT_QUOTES, 'UTF-8') ?>&rdquo; (<?= htmlspecialchars($warning['other_start'] . '–' . $warning['other_end'], ENT_QUOTES, 'UTF-8') ?>)</li>
-                                                <?php elseif ($warning['type'] === 'travel'): ?>
-                                                    <li>Driving from &ldquo;<?= htmlspecialchars((string) ($itemTitles[$warning['other_id']] ?? 'the previous activity'), ENT_QUOTES, 'UTF-8') ?>&rdquo; takes about <?= (int) $warning['travel_minutes'] ?> min, but there <?= (int) $warning['gap_minutes'] === 1 ? 'is only 1 minute' : 'are only ' . (int) $warning['gap_minutes'] . ' min' ?> between them. Estimate only; actual travel may differ.</li>
+                    <?php if (empty($itemsByDate)): ?>
+                        <div class="itinerary-empty">
+                            <p><strong>No activities yet.</strong></p>
+                            <p class="muted"><?= $canEditItinerary ? 'Add your first stop to start building the plan.' : 'The trip owner or an editor can add activities.' ?></p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($itemsByDate as $date => $dayItems): ?>
+                            <?php
+                                $dayTs = strtotime($date);
+                                $dayNumber = (int) round(($dayTs - $startTs) / 86400) + 1;
+                                $inTrip = $dayNumber >= 1 && $dayNumber <= $tripLength;
+                            ?>
+                            <section class="day" aria-labelledby="day-<?= $h($date) ?>">
+                                <h3 class="day-heading" id="day-<?= $h($date) ?>">
+                                    <span class="day-number"><?= $inTrip ? 'Day ' . $dayNumber : 'Outside trip' ?></span>
+                                    <span class="day-date"><?= $h(date('l, M j', $dayTs)) ?></span>
+                                    <span class="day-count"><?= count($dayItems) === 1 ? '1 activity' : count($dayItems) . ' activities' ?></span>
+                                </h3>
+                                <ol class="activity-list">
+                                    <?php foreach ($dayItems as $dayIndex => $item): ?>
+                                        <?php
+                                            $itemId = (int) $item['id'];
+                                            $myVote = $item['my_vote'] === null ? 0 : (int) $item['my_vote'];
+                                            $itemComments = $commentsByItem[$itemId] ?? [];
+                                            $hasWarnings = !empty($scheduleWarnings[$itemId]);
+                                        ?>
+                                        <li class="activity<?= $item['completed_at'] !== null ? ' is-done' : '' ?><?= $hasWarnings ? ' has-warning' : '' ?>" id="item-<?= $itemId ?>">
+                                            <div class="activity-time">
+                                                <?php if (!empty($item['item_time'])): ?>
+                                                    <strong><?= $h(substr($item['item_time'], 0, 5)) ?></strong>
+                                                    <?php if (!empty($item['end_time'])): ?><span>to <?= $h(substr($item['end_time'], 0, 5)) ?></span><?php endif; ?>
+                                                <?php else: ?>
+                                                    <span>Any time</span>
                                                 <?php endif; ?>
+                                            </div>
+                                            <div class="activity-body">
+                                                <div class="activity-head">
+                                                    <h4 class="activity-title"><?= $h($item['title']) ?></h4>
+                                                    <span class="chip"><?= $h(ITINERARY_CATEGORIES[$item['category'] ?? ''] ?? 'Uncategorized') ?></span>
+                                                    <?php if ($item['completed_at'] !== null): ?>
+                                                        <span class="chip chip-done">Done<?= $item['completed_by_name'] !== null ? ' · by ' . $h($item['completed_by_name']) : '' ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if (!empty($item['location']) || $item['place_name'] !== null || $item['assignee_id'] !== null): ?>
+                                                    <ul class="activity-facts">
+                                                        <?php if (!empty($item['location'])): ?>
+                                                            <li><span class="fact-label">Where</span> <?= $h($item['location']) ?></li>
+                                                        <?php endif; ?>
+                                                        <?php if ($item['place_name'] !== null): ?>
+                                                            <li><span class="fact-label">Place</span> <a href="/customer/trips/places.php?id=<?= (int) $tripId ?>#activity-<?= $itemId ?>"><?= $h($item['place_name']) ?></a><?php if ($item['place_lat'] !== null && $item['place_lon'] !== null): ?> · <a href="https://www.openstreetmap.org/directions?route=%3B<?= rawurlencode($item['place_lat'] . ',' . $item['place_lon']) ?>" target="_blank" rel="noopener noreferrer">Directions<span class="sr-only"> (opens OpenStreetMap in a new tab)</span></a><?php endif; ?></li>
+                                                        <?php endif; ?>
+                                                        <?php if ($item['assignee_id'] !== null): ?>
+                                                            <li><span class="fact-label">Who</span> <?= $h($item['assignee_name'] ?? 'a deleted user') ?><?= in_array((int) $item['assignee_id'], $memberIds, true) ? '' : ' (no longer on this trip)' ?></li>
+                                                        <?php endif; ?>
+                                                    </ul>
+                                                <?php endif; ?>
+                                                <?php if ($hasWarnings): ?>
+                                                    <ul class="activity-warnings">
+                                                        <?php foreach ($scheduleWarnings[$itemId] as $warning): ?>
+                                                            <?php if ($warning['type'] === 'outside_trip'): ?>
+                                                                <li>Outside the trip dates. Move it to a day within the trip.</li>
+                                                            <?php elseif ($warning['type'] === 'overlap'): ?>
+                                                                <li>Overlaps with &ldquo;<?= $h((string) ($itemTitles[$warning['other_id']] ?? 'another activity')) ?>&rdquo; (<?= $h($warning['other_start'] . '–' . $warning['other_end']) ?>)</li>
+                                                            <?php elseif ($warning['type'] === 'travel'): ?>
+                                                                <li>Driving from &ldquo;<?= $h((string) ($itemTitles[$warning['other_id']] ?? 'the previous activity')) ?>&rdquo; takes about <?= (int) $warning['travel_minutes'] ?> min, but there <?= (int) $warning['gap_minutes'] === 1 ? 'is only 1 minute' : 'are only ' . (int) $warning['gap_minutes'] . ' min' ?> between them. Estimate only; actual travel may differ.</li>
+                                                            <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                <?php endif; ?>
+                                                <?php if ($item['estimated_cost'] !== null || $item['actual_cost'] !== null): ?>
+                                                    <p class="activity-cost">
+                                                        <?php if ($item['estimated_cost'] !== null): ?><span>Est. <?= $money($item['estimated_cost']) ?></span><?php endif; ?>
+                                                        <?php if ($item['actual_cost'] !== null): ?><span>Actual <?= $money($item['actual_cost']) ?></span><?php endif; ?>
+                                                    </p>
+                                                <?php endif; ?>
+                                                <?php if (!empty($item['notes'])): ?>
+                                                    <p class="activity-notes"><?= nl2br($h($item['notes'])) ?></p>
+                                                <?php endif; ?>
+
+                                                <div class="activity-footer">
+                                                    <div class="activity-feedback">
+                                                        <?php if ($canGiveFeedback): ?>
+                                                            <?php foreach (['up' => 1, 'down' => -1] as $choice => $value): ?>
+                                                                <form method="post" action="/customer/trips/item_feedback.php">
+                                                                    <?= csrf_field() ?>
+                                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                                    <input type="hidden" name="action" value="vote">
+                                                                    <input type="hidden" name="vote" value="<?= $choice ?>">
+                                                                    <button type="submit" class="vote-button" aria-pressed="<?= $myVote === $value ? 'true' : 'false' ?>">
+                                                                        <span aria-hidden="true"><?= $choice === 'up' ? '▲' : '▼' ?></span>
+                                                                        <?= $choice === 'up' ? 'Vote up' : 'Vote down' ?>
+                                                                        <span class="vote-count"><?= (int) ($choice === 'up' ? $item['up_votes'] : $item['down_votes']) ?></span>
+                                                                    </button>
+                                                                </form>
+                                                            <?php endforeach; ?>
+                                                            <?php if ($myVote !== 0): ?>
+                                                                <form method="post" action="/customer/trips/item_feedback.php">
+                                                                    <?= csrf_field() ?>
+                                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                                    <input type="hidden" name="action" value="clear_vote">
+                                                                    <button type="submit" class="text-button">Clear my vote</button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                        <?php else: ?>
+                                                            <span class="vote-summary"><?= (int) $item['up_votes'] ?> up · <?= (int) $item['down_votes'] ?> down</span>
+                                                        <?php endif; ?>
+                                                        <?php if ((int) $item['edited_after_feedback'] === 1): ?>
+                                                            <span class="chip">Edited after feedback</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <?php if ($canEditItinerary): ?>
+                                                        <div class="activity-actions">
+                                                            <a href="/customer/trips/itinerary_edit.php?id=<?= $itemId ?>" class="btn-secondary btn-sm">Edit<span class="sr-only"> <?= $h($item['title']) ?></span></a>
+                                                            <form method="post" action="/customer/trips/itinerary_action.php">
+                                                                <?= csrf_field() ?>
+                                                                <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                                <input type="hidden" name="action" value="<?= $item['completed_at'] === null ? 'complete' : 'reopen' ?>">
+                                                                <button type="submit" class="btn-secondary btn-sm"><?= $item['completed_at'] === null ? 'Mark done' : 'Reopen' ?></button>
+                                                            </form>
+                                                            <?php if ($dayIndex > 0): ?>
+                                                                <form method="post" action="/customer/trips/itinerary_action.php">
+                                                                    <?= csrf_field() ?>
+                                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                                    <input type="hidden" name="action" value="move_up">
+                                                                    <button type="submit" class="btn-ghost btn-sm btn-icon" title="Move up" aria-label="Move up: <?= $h($item['title']) ?>">↑</button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                            <?php if ($dayIndex < count($dayItems) - 1): ?>
+                                                                <form method="post" action="/customer/trips/itinerary_action.php">
+                                                                    <?= csrf_field() ?>
+                                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                                    <input type="hidden" name="action" value="move_down">
+                                                                    <button type="submit" class="btn-ghost btn-sm btn-icon" title="Move down" aria-label="Move down: <?= $h($item['title']) ?>">↓</button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                            <form method="post" action="/customer/trips/delete_itinerary.php"
+                                                                  onsubmit="return confirm('Delete this item?');">
+                                                                <?= csrf_field() ?>
+                                                                <input type="hidden" name="id" value="<?= $itemId ?>">
+                                                                <button type="submit" class="btn-quiet-danger btn-sm">Delete<span class="sr-only"> <?= $h($item['title']) ?></span></button>
+                                                            </form>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <?php if ($itemComments || $canGiveFeedback): ?>
+                                                    <details class="activity-comments disclosure">
+                                                        <summary><?= $itemComments ? (count($itemComments) === 1 ? '1 comment' : count($itemComments) . ' comments') : 'Comment' ?><span class="sr-only"> on <?= $h($item['title']) ?></span></summary>
+                                                        <?php if ($itemComments): ?>
+                                                            <ul class="comment-list">
+                                                                <?php foreach ($itemComments as $comment): ?>
+                                                                    <li>
+                                                                        <p class="comment-meta"><strong><?= $h($comment['name']) ?></strong> · <?= $h(gmdate('M j, Y H:i', strtotime($comment['created_at'] . ' UTC'))) ?> UTC</p>
+                                                                        <p class="comment-body"><?= $h($comment['body']) ?></p>
+                                                                    </li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
+                                                        <?php endif; ?>
+                                                        <?php if ($canGiveFeedback): ?>
+                                                            <form class="comment-form" method="post" action="/customer/trips/item_feedback.php">
+                                                                <?= csrf_field() ?>
+                                                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                                <input type="hidden" name="item_id" value="<?= $itemId ?>">
+                                                                <input type="hidden" name="action" value="comment">
+                                                                <label for="comment-<?= $itemId ?>">Add a comment</label>
+                                                                <textarea id="comment-<?= $itemId ?>" name="body" rows="2" maxlength="1000" required></textarea>
+                                                                <button type="submit" class="btn-secondary btn-sm">Post comment</button>
+                                                            </form>
+                                                        <?php endif; ?>
+                                                    </details>
+                                                <?php endif; ?>
+                                            </div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ol>
+                            </section>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+
+                    <?php if ($canEditItinerary): ?>
+                        <details class="add-activity disclosure" id="add-activity"<?= !empty($itineraryErrors) ? ' open' : '' ?>>
+                            <summary>Add an activity</summary>
+                            <form method="post" action="/customer/trips/itinerary_add.php" novalidate>
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+
+                                <label for="title">Title</label>
+                                <input type="text" id="title" name="title" required maxlength="150" placeholder="e.g. Visit the museum">
+
+                                <div class="form-grid form-grid-3">
+                                    <div>
+                                        <label for="item_date">Date</label>
+                                        <input type="date" id="item_date" name="item_date" required
+                                               min="<?= $h($trip['start_date']) ?>"
+                                               max="<?= $h($trip['end_date']) ?>">
+                                    </div>
+                                    <div>
+                                        <label for="item_time">Start time <span class="optional">(optional)</span></label>
+                                        <input type="time" id="item_time" name="item_time">
+                                    </div>
+                                    <div>
+                                        <label for="end_time">End time <span class="optional">(optional)</span></label>
+                                        <input type="time" id="end_time" name="end_time">
+                                    </div>
+                                </div>
+
+                                <label for="location">Location <span class="optional">(optional)</span></label>
+                                <input type="text" id="location" name="location" maxlength="150">
+
+                                <div class="form-grid">
+                                    <div>
+                                        <label for="category">Category <span class="optional">(optional)</span></label>
+                                        <select id="category" name="category">
+                                            <option value="">Uncategorized</option>
+                                            <?php foreach (ITINERARY_CATEGORIES as $value => $label): ?>
+                                                <option value="<?= $value ?>"><?= $label ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="assignee_id">Assigned to <span class="optional">(optional)</span></label>
+                                        <select id="assignee_id" name="assignee_id">
+                                            <option value="">Unassigned</option>
+                                            <?php foreach ($assignableMembers as $person): ?>
+                                                <option value="<?= (int) $person['id'] ?>"><?= $h($person['name']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-grid">
+                                    <div>
+                                        <label for="estimated_cost">Estimated cost in <?= $h($trip['budget_currency']) ?> <span class="optional">(optional)</span></label>
+                                        <input type="text" inputmode="decimal" id="estimated_cost" name="estimated_cost" placeholder="e.g. 1500.00">
+                                    </div>
+                                    <div>
+                                        <label for="actual_cost">Actual cost in <?= $h($trip['budget_currency']) ?> <span class="optional">(optional)</span></label>
+                                        <input type="text" inputmode="decimal" id="actual_cost" name="actual_cost" placeholder="e.g. 1620.00">
+                                    </div>
+                                </div>
+
+                                <label for="notes">Notes <span class="optional">(optional)</span></label>
+                                <textarea id="notes" name="notes" rows="3" maxlength="2000"></textarea>
+
+                                <button type="submit" class="btn-primary">Add activity</button>
+                            </form>
+                        </details>
+                    <?php endif; ?>
+                </section>
+
+                <?php if ($canEditItinerary): ?>
+                    <?php
+                    $planReview = $_SESSION['plan_review'][$tripId] ?? null;
+                    if (is_array($planReview) && ($planReview['created'] <= time() - PLAN_REVIEW_TTL || !is_string($planReview['id'] ?? null))) {
+                        unset($_SESSION['plan_review'][$tripId]);
+                        $planReview = null;
+                    }
+                    $planNotice = $_SESSION['plan_review_notice'][$tripId] ?? null;
+                    $planError = $_SESSION['plan_review_error'][$tripId] ?? null;
+                    unset($_SESSION['plan_review_notice'][$tripId], $_SESSION['plan_review_error'][$tripId]);
+                    $planTime = fn(array $slot) => date('D, M j', strtotime($slot['date'])) . ($slot['time'] !== '' ? ' ' . $slot['time'] . ($slot['end'] !== '' ? '–' . $slot['end'] : '') : ', any time');
+                    $reviewOpen = $planReview || $planNotice || $planError;
+                    ?>
+                    <section class="assist-panel" aria-labelledby="assist-title">
+                        <div class="panel-head">
+                            <div>
+                                <p class="eyebrow">Planning assistant</p>
+                                <h2 id="assist-title" class="section-title">Ideas and plan check</h2>
+                                <p class="section-lead">Optional AI help. Nothing changes until you add or apply a suggestion.</p>
+                            </div>
+                        </div>
+
+                        <details class="assist-tool disclosure" id="plan-review"<?= $reviewOpen ? ' open' : '' ?>>
+                            <summary>
+                                <span><span class="assist-tool-title">Review my plan</span><span class="assist-tool-sub">Budget tips, schedule fixes and ideas</span></span>
+                            </summary>
+                            <div class="assist-tool-body">
+                                <p class="assist-privacy">Sent to the AI service: destination, dates, budget, and each activity's title, date, times, category, place name and estimated cost. Notes, comments, expenses, booking references, reminders and member details are not sent. Up to <?= PLAN_REVIEW_LIMIT_PER_HOUR ?> reviews an hour.</p>
+                                <form method="post" action="/customer/trips/plan_review.php" class="plan-review-request">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                                    <input type="hidden" name="action" value="review">
+                                    <button type="submit" class="btn-primary">Review my plan</button>
+                                </form>
+                                <?php if ($planNotice): ?><p class="notice notice-success" role="status"><?= $h($planNotice) ?></p><?php endif; ?>
+                                <?php if ($planError): ?><p class="notice notice-error" role="alert"><?= $h($planError) ?></p><?php endif; ?>
+                                <?php if ($planReview): ?>
+                                    <?php $r = $planReview['review']; ?>
+                                    <?php if ($r['schedule']): ?>
+                                        <h3 class="assist-subhead">Schedule</h3>
+                                        <ul class="suggestion-list">
+                                            <?php foreach ($r['schedule'] as $n => $s): ?>
+                                                <li class="suggestion">
+                                                    <div>
+                                                        <p class="suggestion-title"><strong><?= $h($s['title']) ?></strong></p>
+                                                        <p class="suggestion-change"><span class="muted"><?= $h($planTime($s['from'])) ?></span> <span aria-hidden="true">→</span><span class="sr-only"> to </span> <strong><?= $h($planTime($s['to'])) ?></strong></p>
+                                                        <p class="suggestion-reason"><?= $h($s['reason']) ?></p>
+                                                    </div>
+                                                    <form method="post" action="/customer/trips/plan_apply.php">
+                                                        <?= csrf_field() ?>
+                                                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                                                        <input type="hidden" name="suggestion" value="<?= (int) $n ?>">
+                                                        <input type="hidden" name="review_id" value="<?= $h($planReview['id']) ?>">
+                                                        <button type="submit" class="btn-secondary btn-sm">Apply</button>
+                                                    </form>
+                                                </li>
                                             <?php endforeach; ?>
                                         </ul>
                                     <?php endif; ?>
-                                    <?php if ($item['estimated_cost'] !== null || $item['actual_cost'] !== null): ?>
-                                        <p class="itinerary-cost">
-                                            <?php if ($item['estimated_cost'] !== null): ?>
-                                                Est. <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $item['estimated_cost'], 2) ?>
-                                            <?php endif; ?>
-                                            <?php if ($item['actual_cost'] !== null): ?>
-                                                <?= $item['estimated_cost'] !== null ? ' · ' : '' ?>Actual <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $item['actual_cost'], 2) ?>
-                                            <?php endif; ?>
-                                        </p>
-                                    <?php endif; ?>
-                                    <?php if (!empty($item['notes'])): ?>
-                                        <p class="itinerary-notes"><?= nl2br(htmlspecialchars($item['notes'], ENT_QUOTES, 'UTF-8')) ?></p>
-                                    <?php endif; ?>
-                                    <?php if ($canEditItinerary): ?>
-                                    <div class="itinerary-item-actions">
-                                        <a href="/customer/trips/itinerary_edit.php?id=<?= (int) $item['id'] ?>">Edit</a>
-                                        <form method="post" action="/customer/trips/itinerary_action.php">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-                                            <input type="hidden" name="action" value="<?= $item['completed_at'] === null ? 'complete' : 'reopen' ?>">
-                                            <button type="submit"><?= $item['completed_at'] === null ? 'Mark done' : 'Reopen' ?></button>
-                                        </form>
-                                        <?php if ($dayIndex > 0): ?>
-                                        <form method="post" action="/customer/trips/itinerary_action.php">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-                                            <input type="hidden" name="action" value="move_up">
-                                            <button type="submit">Move up</button>
-                                        </form>
-                                        <?php endif; ?>
-                                        <?php if ($dayIndex < count($dayItems) - 1): ?>
-                                        <form method="post" action="/customer/trips/itinerary_action.php">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-                                            <input type="hidden" name="action" value="move_down">
-                                            <button type="submit">Move down</button>
-                                        </form>
-                                        <?php endif; ?>
-                                        <form method="post" action="/customer/trips/delete_itinerary.php"
-                                              onsubmit="return confirm('Delete this item?');">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                            <button type="submit" class="link-danger">Delete</button>
-                                        </form>
-                                    </div>
-                                    <?php endif; ?>
-                                    <?php
-                                        $itemId = (int) $item['id'];
-                                        $myVote = $item['my_vote'] === null ? 0 : (int) $item['my_vote'];
-                                        $itemComments = $commentsByItem[$itemId] ?? [];
-                                    ?>
-                                    <div class="itinerary-feedback">
-                                        <p class="itinerary-votes">
-                                            <?= (int) $item['up_votes'] ?> up &middot; <?= (int) $item['down_votes'] ?> down
-                                            <?php if ((int) $item['edited_after_feedback'] === 1): ?>
-                                                <span class="feedback-edited">Edited after feedback</span>
-                                            <?php endif; ?>
-                                        </p>
-                                        <?php if ($canGiveFeedback): ?>
-                                        <div class="feedback-vote-actions">
-                                            <?php foreach (['up' => 1, 'down' => -1] as $choice => $value): ?>
-                                                <form method="post" action="/customer/trips/item_feedback.php">
-                                                    <?= csrf_field() ?>
-                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
-                                                    <input type="hidden" name="action" value="vote">
-                                                    <input type="hidden" name="vote" value="<?= $choice ?>">
-                                                    <button type="submit" aria-pressed="<?= $myVote === $value ? 'true' : 'false' ?>"><?= $choice === 'up' ? 'Vote up' : 'Vote down' ?></button>
-                                                </form>
-                                            <?php endforeach; ?>
-                                            <?php if ($myVote !== 0): ?>
-                                                <form method="post" action="/customer/trips/item_feedback.php">
-                                                    <?= csrf_field() ?>
-                                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
-                                                    <input type="hidden" name="action" value="clear_vote">
-                                                    <button type="submit">Clear my vote</button>
-                                                </form>
-                                            <?php endif; ?>
-                                        </div>
-                                        <?php endif; ?>
-                                        <?php if ($itemComments): ?>
-                                            <ul class="feedback-comments">
-                                                <?php foreach ($itemComments as $comment): ?>
-                                                    <li>
-                                                        <p class="feedback-comment-meta"><?= htmlspecialchars($comment['name'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(gmdate('M j, Y H:i', strtotime($comment['created_at'] . ' UTC')), ENT_QUOTES, 'UTF-8') ?> UTC</p>
-                                                        <p class="feedback-comment-body"><?= htmlspecialchars($comment['body'], ENT_QUOTES, 'UTF-8') ?></p>
-                                                    </li>
-                                                <?php endforeach; ?>
+                                    <?php foreach (['budget' => 'Budget', 'ideas' => 'Ideas'] as $planKey => $planHeading): ?>
+                                        <?php if ($r[$planKey]): ?>
+                                            <h3 class="assist-subhead"><?= $planHeading ?></h3>
+                                            <ul class="tip-list">
+                                                <?php foreach ($r[$planKey] as $tip): ?><li><?= $h($tip) ?></li><?php endforeach; ?>
                                             </ul>
                                         <?php endif; ?>
-                                        <?php if ($canGiveFeedback): ?>
-                                            <form class="feedback-comment-form" method="post" action="/customer/trips/item_feedback.php">
+                                    <?php endforeach; ?>
+                                    <p class="assist-privacy">AI suggestions can be wrong. Check times, prices and opening hours yourself. Suggestions disappear after 30 minutes.</p>
+                                    <form method="post" action="/customer/trips/plan_review.php">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
+                                        <input type="hidden" name="action" value="clear">
+                                        <input type="hidden" name="review_id" value="<?= $h($planReview['id']) ?>">
+                                        <button type="submit" class="text-button">Clear suggestions</button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        </details>
+
+                        <details class="assist-tool disclosure" id="trip-ideas"<?= $planOpen ? ' open' : '' ?>>
+                            <summary>
+                                <span><span class="assist-tool-title">Ideas for <?= $h($trip['destination']) ?></span><span class="assist-tool-sub">Suggested activities you can edit, then add</span></span>
+                            </summary>
+                            <div class="assist-tool-body">
+                                <p class="assist-privacy">Place details may be inaccurate; check them before you go. Your destination, dates, budget, interests, and pace are sent to the AI service for this request.</p>
+                                <form class="ideas-request" method="post" action="/customer/trips/view.php?id=<?= (int) $trip['id'] ?>#trip-ideas">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="recommend">
+                                    <div class="form-grid">
+                                        <div>
+                                            <label for="trip-interests">What do you enjoy?</label>
+                                            <input id="trip-interests" name="interests" maxlength="120" placeholder="Art, food, nature..." value="<?= $h($interests) ?>">
+                                        </div>
+                                        <div>
+                                            <label for="trip-pace">Travel pace</label>
+                                            <select id="trip-pace" name="pace">
+                                                <option value="relaxed" <?= $pace === 'relaxed' ? 'selected' : '' ?>>Relaxed</option>
+                                                <option value="balanced" <?= $pace === 'balanced' ? 'selected' : '' ?>>Balanced</option>
+                                                <option value="packed" <?= $pace === 'packed' ? 'selected' : '' ?>>Packed</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-primary">Suggest activities</button>
+                                </form>
+                                <?php if ($recommendationError): ?>
+                                    <p class="notice notice-error" role="alert"><?= $h($recommendationError) ?></p>
+                                <?php endif; ?>
+                                <?php if ($recommendations): ?>
+                                    <div class="idea-grid">
+                                        <?php foreach ($recommendations as $index => $idea): ?>
+                                            <form class="idea-card" method="post" action="/customer/trips/itinerary_add.php">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                <p class="eyebrow">AI suggestion <?= $index + 1 ?></p>
+                                                <label for="idea-title-<?= $index ?>">Activity</label>
+                                                <input id="idea-title-<?= $index ?>" name="title" maxlength="150" required value="<?= $h($idea['title']) ?>">
+                                                <label for="idea-date-<?= $index ?>">Day</label>
+                                                <input id="idea-date-<?= $index ?>" type="date" name="item_date" min="<?= $h($trip['start_date']) ?>" max="<?= $h($trip['end_date']) ?>" required value="<?= $h($idea['date']) ?>">
+                                                <label for="idea-location-<?= $index ?>">Place</label>
+                                                <input id="idea-location-<?= $index ?>" name="location" maxlength="150" value="<?= $h($idea['location']) ?>">
+                                                <label for="idea-notes-<?= $index ?>">Why this place?</label>
+                                                <textarea id="idea-notes-<?= $index ?>" name="notes" rows="2" maxlength="2000"><?= $h($idea['notes']) ?></textarea>
+                                                <button type="submit" class="btn-secondary btn-sm">Add to itinerary</button>
+                                            </form>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </details>
+                    </section>
+                <?php endif; ?>
+            </div>
+
+            <aside class="trip-side" aria-label="Trip details">
+                <section class="card" aria-labelledby="budget-title">
+                    <h2 id="budget-title" class="card-title">Budget</h2>
+                    <dl class="kv-list">
+                        <div><dt>Planned across itinerary</dt><dd><?= $money($totalEstimated) ?></dd></div>
+                        <div><dt>Actual spend</dt><dd><?= $money($totalActual) ?></dd></div>
+                        <?php if ($trip['budget_amount'] !== null): ?>
+                            <?php $remaining = (float) $trip['budget_amount'] - $totalActual; ?>
+                            <div><dt>Total budget</dt><dd><?= $money($trip['budget_amount']) ?></dd></div>
+                            <div class="kv-total<?= $remaining >= 0 ? '' : ' is-over' ?>"><dt><?= $remaining >= 0 ? 'Remaining' : 'Over budget' ?></dt><dd><?= $money(abs($remaining)) ?></dd></div>
+                        <?php endif; ?>
+                    </dl>
+                    <a class="card-link" href="/customer/trips/expenses.php?id=<?= (int) $tripId ?>">Shared expenses <span aria-hidden="true">→</span></a>
+                </section>
+
+                <section class="card" aria-labelledby="progress-title">
+                    <h2 id="progress-title" class="card-title">Progress</h2>
+                    <dl class="progress-list">
+                        <?php foreach ([
+                            'activities' => ['Activities completed', '/customer/trips/view.php?id=' . (int) $tripId . '#itinerary', 'No activities yet'],
+                            'references' => ['Booking references confirmed', '/customer/trips/references.php?id=' . (int) $tripId, 'No booking references yet'],
+                            'expenses'   => ['Expense shares settled', '/customer/trips/expenses.php?id=' . (int) $tripId, 'No shares owed yet'],
+                            'reminders'  => ['Your due reminders acknowledged', '/customer/trips/reminders.php?id=' . (int) $tripId, 'None of your reminders are due yet'],
+                        ] as $key => [$label, $href, $emptyText]): ?>
+                            <?php $done = (int) $progress[$key]['done']; $total = (int) $progress[$key]['total']; ?>
+                            <div class="progress-row">
+                                <dt><a href="<?= $h($href) ?>"><?= $h($label) ?></a></dt>
+                                <?php if ($total === 0): ?>
+                                    <dd class="progress-empty"><?= $h($emptyText) ?></dd>
+                                <?php else: ?>
+                                    <dd><strong><?= $done ?> of <?= $total ?></strong>
+                                        <progress max="<?= $total ?>" value="<?= $done ?>" aria-label="<?= $h($label) ?>: <?= $done ?> of <?= $total ?>"></progress></dd>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </dl>
+                    <details class="progress-help">
+                        <summary>How progress is counted</summary>
+                        <p>Booking references count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). Reminders count only your own reminders that are due and not cancelled. There is no overall percentage.</p>
+                    </details>
+                </section>
+
+                <section class="card" id="members" aria-labelledby="members-title">
+                    <div class="card-head">
+                        <h2 id="members-title" class="card-title">Travelers</h2>
+                        <span class="chip chip-role"><?= $h($roleLabel) ?></span>
+                    </div>
+                    <p class="card-note">Your role: <strong><?= $h($roleLabel) ?></strong><?= $canEditItinerary ? '' : ' (view only)' ?>. <?= $h($roleHelp) ?></p>
+                    <?php if ($memberNotice): ?><p class="notice notice-success" role="status"><?= $h($memberNotice) ?></p><?php endif; ?>
+                    <?php if ($memberError): ?><p class="notice notice-error" role="alert"><?= $h($memberError) ?></p><?php endif; ?>
+                    <ul class="member-list">
+                        <?php foreach ($members as $member): ?>
+                            <li class="member">
+                                <div class="member-row">
+                                    <span class="member-avatar" aria-hidden="true"><?= $h(mb_strtoupper(mb_substr($member['name'], 0, 1))) ?></span>
+                                    <span class="member-name"><?= $h($member['name']) ?><?= (int) $member['id'] === (int) current_user_id() ? ' <span class="muted">(you)</span>' : '' ?></span>
+                                    <span class="chip<?= $member['role'] === 'owner' ? ' chip-role' : '' ?>"><?= $h(ucfirst($member['role'])) ?></span>
+                                </div>
+                                <?php if ($canManageTrip && $member['role'] !== 'owner'): ?>
+                                    <details class="member-manage">
+                                        <summary>Manage<span class="sr-only"> <?= $h($member['name']) ?></span></summary>
+                                        <div class="member-manage-body">
+                                            <form method="post" action="/customer/trips/member_action.php" class="member-role-form">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                <input type="hidden" name="member_id" value="<?= (int) $member['id'] ?>">
+                                                <input type="hidden" name="action" value="change_role">
+                                                <label for="member-role-<?= (int) $member['id'] ?>">Role for <?= $h($member['name']) ?></label>
+                                                <div class="inline-fields">
+                                                    <select id="member-role-<?= (int) $member['id'] ?>" name="role">
+                                                        <?php foreach (['editor', 'commenter', 'viewer'] as $roleOption): ?>
+                                                            <option value="<?= $roleOption ?>" <?= $member['role'] === $roleOption ? 'selected' : '' ?>><?= ucfirst($roleOption) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <button type="submit" class="btn-secondary btn-sm">Change role</button>
+                                                </div>
+                                            </form>
+                                            <div class="member-manage-actions">
+                                                <?php if ($member['system_role'] === 'customer'): ?>
+                                                    <form method="post" action="/customer/trips/member_action.php"
+                                                          onsubmit="return confirm('Make this member the owner? You will become an editor.');">
+                                                        <?= csrf_field() ?>
+                                                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                                        <input type="hidden" name="member_id" value="<?= (int) $member['id'] ?>">
+                                                        <input type="hidden" name="action" value="transfer">
+                                                        <button type="submit" class="btn-ghost btn-sm">Make owner</button>
+                                                    </form>
+                                                <?php endif; ?>
+                                                <form method="post" action="/customer/trips/member_action.php"
+                                                      onsubmit="return confirm('Remove this member? Their access ends immediately.');">
                                                     <?= csrf_field() ?>
                                                     <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                                    <input type="hidden" name="item_id" value="<?= $itemId ?>">
-                                                <input type="hidden" name="action" value="comment">
-                                                <label for="comment-<?= $itemId ?>">Add a comment</label>
-                                                <textarea id="comment-<?= $itemId ?>" name="body" rows="2" maxlength="1000" required></textarea>
-                                                <button type="submit">Post comment</button>
-                                            </form>
-                                        <?php endif; ?>
-                                    </div>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-
-            <?php if ($canEditItinerary): ?>
-            <details class="add-item-form">
-                <summary>+ Add itinerary item</summary>
-                <form method="post" action="/customer/trips/itinerary_add.php" novalidate>
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-
-                    <label for="title">Title</label>
-                    <input type="text" id="title" name="title" required maxlength="150" placeholder="e.g. Visit the museum">
-
-                    <div class="form-row">
-                        <div>
-                            <label for="item_date">Date</label>
-                            <input type="date" id="item_date" name="item_date" required
-                                   min="<?= htmlspecialchars($trip['start_date'], ENT_QUOTES, 'UTF-8') ?>"
-                                   max="<?= htmlspecialchars($trip['end_date'], ENT_QUOTES, 'UTF-8') ?>">
-                        </div>
-                        <div>
-                            <label for="item_time">Start time (optional)</label>
-                            <input type="time" id="item_time" name="item_time">
-                        </div>
-                        <div>
-                            <label for="end_time">End time (optional)</label>
-                            <input type="time" id="end_time" name="end_time">
-                        </div>
-                    </div>
-
-                    <label for="location">Location (optional)</label>
-                    <input type="text" id="location" name="location" maxlength="150">
-
-                    <div class="form-row">
-                        <div>
-                            <label for="category">Category (optional)</label>
-                            <select id="category" name="category">
-                                <option value="">Uncategorized</option>
-                                <?php foreach (ITINERARY_CATEGORIES as $value => $label): ?>
-                                    <option value="<?= $value ?>"><?= $label ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="assignee_id">Assigned to (optional)</label>
-                            <select id="assignee_id" name="assignee_id">
-                                <option value="">Unassigned</option>
-                                <?php foreach ($assignableMembers as $person): ?>
-                                    <option value="<?= (int) $person['id'] ?>"><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div>
-                            <label for="estimated_cost">Estimated cost in <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> (optional)</label>
-                            <input type="text" inputmode="decimal" id="estimated_cost" name="estimated_cost" placeholder="e.g. 1500.00">
-                        </div>
-                        <div>
-                            <label for="actual_cost">Actual cost in <?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> (optional)</label>
-                            <input type="text" inputmode="decimal" id="actual_cost" name="actual_cost" placeholder="e.g. 1620.00">
-                        </div>
-                    </div>
-
-                    <label for="notes">Notes (optional)</label>
-                    <textarea id="notes" name="notes" rows="3" maxlength="2000"></textarea>
-
-                    <button type="submit">Add Item</button>
-                </form>
-            </details>
-            <?php endif; ?>
-            </section>
-
-            <aside class="trip-detail-card">
-                <?php if ($canManageTrip): ?>
-                    <h2>Invite a traveler</h2>
-                    <?php if ($inviteNotice): ?><p role="status"><?= htmlspecialchars($inviteNotice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-                    <?php if ($inviteError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($inviteError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-                    <form method="post" action="/customer/trips/invite.php">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                        <label for="invite-email">Existing customer email</label>
-                        <input id="invite-email" type="email" name="email" required>
-                        <label for="invite-role">Trip role</label>
-                        <select id="invite-role" name="role">
-                            <option value="editor">Editor</option>
-                            <option value="commenter">Commenter</option>
-                            <option value="viewer">Viewer</option>
-                        </select>
-                        <button type="submit">Send invitation</button>
-                    </form>
-                    <?php if ($pendingInvites): ?>
-                        <h3>Pending invitations</h3>
-                        <ul class="trip-member-list">
-                            <?php foreach ($pendingInvites as $invite): ?>
-                                <li><?= htmlspecialchars($invite['email'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(ucfirst($invite['role']), ENT_QUOTES, 'UTF-8') ?> &middot; expires <?= htmlspecialchars(date('M j, Y', strtotime($invite['expires_at'])), ENT_QUOTES, 'UTF-8') ?>
-                                    <form method="post" action="/customer/trips/member_action.php" class="trip-member-form">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                        <input type="hidden" name="action" value="revoke_invite">
-                                        <input type="hidden" name="invitation_id" value="<?= (int) $invite['id'] ?>">
-                                        <input type="hidden" name="issue_no" value="<?= (int) $invite['issue_no'] ?>">
-                                        <button type="submit" class="link-danger">Revoke</button>
-                                    </form>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php endif; ?>
-                <?php endif; ?>
-                <h2>Trip members</h2>
-                <?php if ($memberNotice): ?><p role="status"><?= htmlspecialchars($memberNotice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-                <?php if ($memberError): ?><p class="form-errors" role="alert"><?= htmlspecialchars($memberError, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-                <p>Your role: <strong><?= htmlspecialchars(ucfirst($tripRole), ENT_QUOTES, 'UTF-8') ?></strong><?= $canEditItinerary ? '' : ' (view only)' ?></p>
-                <ul class="trip-member-list">
-                    <?php foreach ($members as $member): ?>
-                        <li><?= htmlspecialchars($member['name'], ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars(ucfirst($member['role']), ENT_QUOTES, 'UTF-8') ?>
-                            <?php if ($canManageTrip && $member['role'] !== 'owner'): ?>
-                                <form method="post" action="/customer/trips/member_action.php" class="trip-member-form">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                    <input type="hidden" name="member_id" value="<?= (int) $member['id'] ?>">
-                                    <input type="hidden" name="action" value="change_role">
-                                    <label class="sr-only" for="member-role-<?= (int) $member['id'] ?>">Role for <?= htmlspecialchars($member['name'], ENT_QUOTES, 'UTF-8') ?></label>
-                                    <select id="member-role-<?= (int) $member['id'] ?>" name="role">
-                                        <?php foreach (['editor', 'commenter', 'viewer'] as $roleOption): ?>
-                                            <option value="<?= $roleOption ?>" <?= $member['role'] === $roleOption ? 'selected' : '' ?>><?= ucfirst($roleOption) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit">Change role</button>
-                                </form>
-                                <form method="post" action="/customer/trips/member_action.php" class="trip-member-form"
-                                      onsubmit="return confirm('Remove this member? Their access ends immediately.');">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                    <input type="hidden" name="member_id" value="<?= (int) $member['id'] ?>">
-                                    <input type="hidden" name="action" value="remove">
-                                    <button type="submit" class="link-danger">Remove</button>
-                                </form>
-                                <?php if ($member['system_role'] === 'customer'): ?>
-                                <form method="post" action="/customer/trips/member_action.php" class="trip-member-form"
-                                      onsubmit="return confirm('Make this member the owner? You will become an editor.');">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                                    <input type="hidden" name="member_id" value="<?= (int) $member['id'] ?>">
-                                    <input type="hidden" name="action" value="transfer">
-                                    <button type="submit">Make owner</button>
-                                </form>
+                                                    <input type="hidden" name="member_id" value="<?= (int) $member['id'] ?>">
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <button type="submit" class="btn-quiet-danger btn-sm">Remove</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </details>
                                 <?php endif; ?>
-                            <?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-                <?php if ($tripRole !== 'owner'): ?>
-                    <form method="post" action="/customer/trips/member_action.php"
-                          onsubmit="return confirm('Leave this trip? The trip and other members are not affected.');">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                        <input type="hidden" name="action" value="leave">
-                        <button type="submit" class="link-danger">Leave trip</button>
-                    </form>
-                <?php endif; ?>
-                <dl class="trip-detail-list">
-                    <dt>Destination</dt>
-                    <dd><?= htmlspecialchars($trip['destination'], ENT_QUOTES, 'UTF-8') ?></dd>
-                    <dt>Trip dates</dt>
-                    <dd><?= htmlspecialchars(date('M j', strtotime($trip['start_date'])), ENT_QUOTES, 'UTF-8') ?> &mdash; <?= htmlspecialchars(date('M j, Y', strtotime($trip['end_date'])), ENT_QUOTES, 'UTF-8') ?></dd>
-                    <dt>Currency</dt>
-                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?></dd>
-                    <?php if (!empty($trip['notes'])): ?>
-                        <dt>Notes</dt>
-                        <dd class="trip-notes"><?= nl2br(htmlspecialchars($trip['notes'], ENT_QUOTES, 'UTF-8')) ?></dd>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+
+                    <?php if ($canManageTrip): ?>
+                        <?php if ($inviteNotice): ?><p class="notice notice-success" role="status"><?= $h($inviteNotice) ?></p><?php endif; ?>
+                        <?php if ($inviteError): ?><p class="notice notice-error" role="alert"><?= $h($inviteError) ?></p><?php endif; ?>
+                        <details class="invite disclosure"<?= $inviteError ? ' open' : '' ?>>
+                            <summary>Invite a traveler</summary>
+                            <form method="post" action="/customer/trips/invite.php">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                <label for="invite-email">Existing customer email</label>
+                                <input id="invite-email" type="email" name="email" required>
+                                <label for="invite-role">Trip role</label>
+                                <select id="invite-role" name="role">
+                                    <option value="editor">Editor</option>
+                                    <option value="commenter">Commenter</option>
+                                    <option value="viewer">Viewer</option>
+                                </select>
+                                <button type="submit" class="btn-primary btn-block">Send invitation</button>
+                            </form>
+                        </details>
+                        <?php if ($pendingInvites): ?>
+                            <h3 class="card-subhead">Pending invitations</h3>
+                            <ul class="invite-list">
+                                <?php foreach ($pendingInvites as $invite): ?>
+                                    <li>
+                                        <div>
+                                            <span class="invite-email"><?= $h($invite['email']) ?></span>
+                                            <span class="muted"><?= $h(ucfirst($invite['role'])) ?> · expires <?= $h(date('M j, Y', strtotime($invite['expires_at']))) ?></span>
+                                        </div>
+                                        <form method="post" action="/customer/trips/member_action.php">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                            <input type="hidden" name="action" value="revoke_invite">
+                                            <input type="hidden" name="invitation_id" value="<?= (int) $invite['id'] ?>">
+                                            <input type="hidden" name="issue_no" value="<?= (int) $invite['issue_no'] ?>">
+                                            <button type="submit" class="btn-quiet-danger btn-sm">Revoke<span class="sr-only"> invitation for <?= $h($invite['email']) ?></span></button>
+                                        </form>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
                     <?php endif; ?>
-                </dl>
+
+                    <?php if ($tripRole !== 'owner'): ?>
+                        <form method="post" action="/customer/trips/member_action.php" class="leave-form"
+                              onsubmit="return confirm('Leave this trip? The trip and other members are not affected.');">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                            <input type="hidden" name="action" value="leave">
+                            <button type="submit" class="btn-quiet-danger btn-sm">Leave trip</button>
+                        </form>
+                    <?php endif; ?>
+                </section>
+
+                <section class="card" aria-labelledby="details-title">
+                    <h2 id="details-title" class="card-title">Trip details</h2>
+                    <dl class="kv-list kv-stacked">
+                        <div><dt>Destination</dt><dd><?= $h($trip['destination']) ?></dd></div>
+                        <div><dt>Trip dates</dt><dd><?= $h(date('M j', $startTs)) ?> &mdash; <?= $h(date('M j, Y', $endTs)) ?></dd></div>
+                        <div><dt>Currency</dt><dd><?= $h($trip['budget_currency']) ?></dd></div>
+                        <?php if (!empty($trip['notes'])): ?>
+                            <div><dt>Notes</dt><dd class="trip-notes"><?= nl2br($h($trip['notes'])) ?></dd></div>
+                        <?php endif; ?>
+                    </dl>
+                </section>
+
                 <?php if ($canManageTrip): ?>
-                <div class="trip-detail-actions">
-                    <form method="post" action="/customer/trips/archive.php">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
-                        <input type="hidden" name="action" value="<?= $trip['archived_at'] !== null ? 'restore' : 'archive' ?>">
-                        <button type="submit"><?= $trip['archived_at'] !== null ? 'Restore trip' : 'Archive trip' ?></button>
-                    </form>
-                    <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-primary">Edit trip</a>
-                    <form method="post" action="/customer/trips/delete.php" onsubmit="return confirm('Delete this trip? This cannot be undone.');">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="id" value="<?= (int) $trip['id'] ?>">
-                        <button type="submit" class="btn-danger">Delete</button>
-                    </form>
-                </div>
+                    <section class="card card-settings" aria-labelledby="settings-title">
+                        <h2 id="settings-title" class="card-title">Trip settings</h2>
+                        <div class="settings-actions">
+                            <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-secondary btn-sm">Edit trip</a>
+                            <form method="post" action="/customer/trips/archive.php">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
+                                <input type="hidden" name="action" value="<?= $trip['archived_at'] !== null ? 'restore' : 'archive' ?>">
+                                <button type="submit" class="btn-secondary btn-sm"><?= $trip['archived_at'] !== null ? 'Restore trip' : 'Archive trip' ?></button>
+                            </form>
+                        </div>
+                        <p class="card-note">Archiving files the trip away without deleting it. Deleting removes the trip for everyone and cannot be undone.</p>
+                        <form method="post" action="/customer/trips/delete.php" onsubmit="return confirm('Delete this trip? This cannot be undone.');">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="id" value="<?= (int) $trip['id'] ?>">
+                            <button type="submit" class="btn-quiet-danger btn-sm">Delete trip</button>
+                        </form>
+                    </section>
                 <?php endif; ?>
             </aside>
-
-            <section class="budget-summary">
-                <h2>Budget</h2>
-                <dl class="trip-detail-list">
-                    <dt>Planned across itinerary</dt>
-                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalEstimated, 2) ?></dd>
-                    <dt>Actual spend</dt>
-                    <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format($totalActual, 2) ?></dd>
-                    <?php if ($trip['budget_amount'] !== null): ?>
-                        <?php $remaining = (float) $trip['budget_amount'] - $totalActual; ?>
-                        <dt>Total budget</dt>
-                        <dd><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format((float) $trip['budget_amount'], 2) ?></dd>
-                        <dt><?= $remaining >= 0 ? 'Remaining' : 'Over budget' ?></dt>
-                        <dd class="<?= $remaining >= 0 ? '' : 'budget-over' ?>"><?= htmlspecialchars($trip['budget_currency'], ENT_QUOTES, 'UTF-8') ?> <?= number_format(abs($remaining), 2) ?></dd>
-                    <?php endif; ?>
-                </dl>
-            </section>
-
-            <section class="trip-progress" aria-labelledby="progress-title">
-                <h2 id="progress-title">Progress</h2>
-                <dl class="progress-list">
-                    <?php foreach ([
-                        'activities' => ['Activities completed', '/customer/trips/view.php?id=' . (int) $tripId . '#itinerary', 'No activities yet'],
-                        'references' => ['Booking references confirmed', '/customer/trips/references.php?id=' . (int) $tripId, 'No booking references yet'],
-                        'expenses'   => ['Expense shares settled', '/customer/trips/expenses.php?id=' . (int) $tripId, 'No shares owed yet'],
-                        'reminders'  => ['Your due reminders acknowledged', '/customer/trips/reminders.php?id=' . (int) $tripId, 'None of your reminders are due yet'],
-                    ] as $key => [$label, $href, $emptyText]): ?>
-                        <?php $done = (int) $progress[$key]['done']; $total = (int) $progress[$key]['total']; ?>
-                        <div class="progress-row">
-                            <dt><a href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></a></dt>
-                            <?php if ($total === 0): ?>
-                                <dd class="progress-empty"><?= htmlspecialchars($emptyText, ENT_QUOTES, 'UTF-8') ?></dd>
-                            <?php else: ?>
-                                <dd><strong><?= $done ?> of <?= $total ?></strong>
-                                    <progress max="<?= $total ?>" value="<?= $done ?>" aria-label="<?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>: <?= $done ?> of <?= $total ?>"></progress></dd>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
-                </dl>
-                <p class="progress-note">Booking references count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). Reminders count only your own reminders that are due and not cancelled. There is no overall percentage.</p>
-            </section>
         </div>
     </main>
 
     <?php require __DIR__ . '/../../includes/partials/chat_widget.php'; ?>
     <?php require __DIR__ . '/../../includes/partials/support_chathead.php'; ?>
+    <script src="/assets/js/trip-page.js" defer></script>
 </body>
 </html>

@@ -43,16 +43,17 @@ $events = array_values(array_filter($rows, fn($r) => $r['event_type'] !== null))
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Activity history — <?= htmlspecialchars($tripName, ENT_QUOTES, 'UTF-8') ?> — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Activity history</h1>
-            <a href="/customer/trips/view.php?id=<?= (int) $tripId ?>" class="logout-link">Back to trip</a>
-        </header>
+    <?php $navCurrent = null; require __DIR__ . '/../../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <?php $tripId = (int) $tripId; $tripTab = 'history'; $tripPageTitle = 'Activity history'; $tripPageLead = null; require __DIR__ . '/../../includes/partials/trip_header.php'; ?>
 
         <section class="trip-history">
             <p class="eyebrow"><?= htmlspecialchars($tripName, ENT_QUOTES, 'UTF-8') ?></p>

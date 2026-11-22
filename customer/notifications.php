@@ -68,13 +68,16 @@ $rowAction = function (int $id, string $action, string $label) use ($filter): vo
     <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261103-2">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/notifications.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Notifications</h1>
-            <a href="/customer/dashboard.php" class="logout-link">Back to My Trips</a>
-        </header>
+    <?php $navCurrent = 'notifications'; require __DIR__ . '/../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <div class="page-head">
+            <h1 class="page-title">Notifications</h1>
+            <p class="section-lead">Updates from your trips. Open one to go to the trip.</p>
+        </div>
 
         <?php if ($notice): ?><p class="form-notice" role="status"><?= $e($notice) ?></p><?php endif; ?>
         <?php if ($error): ?><p class="form-errors" role="alert"><?= $e($error) ?></p><?php endif; ?>

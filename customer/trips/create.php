@@ -186,13 +186,12 @@ $dayCount = $values['start_date'] && $values['end_date'] && !validate_trip_dates
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/planning.css?v=20261105-1">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-<main class="dashboard planning-page">
-    <header class="dashboard-header">
-        <a class="site-brand" href="/customer/dashboard.php"><img src="/assets/images/travelease-logo-mark.svg" alt=""><span><strong>TravelEase</strong><small>A little planning. A great journey.</small></span></a>
-        <a href="/customer/dashboard.php" class="logout-link">← Back to my trips</a>
-    </header>
+    <?php $navCurrent = 'trips'; require __DIR__ . '/../../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page planning-page" id="main-content" tabindex="-1">
     <div class="planning-layout">
         <aside class="planning-intro">
             <p class="eyebrow">Make room for the memorable</p>

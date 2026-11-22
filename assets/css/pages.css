@@ -1,0 +1,53 @@
+/* Older page content aligned to the redesign. Loaded after app.css on every
+   redesigned page except the dashboard and trip page (which have their own CSS). */
+
+/* ---- Page heading extras ---- */
+.page-head-links { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin: .7rem 0 0; font-size: .9rem; }
+.page-head-links a { display: inline-flex; align-items: center; min-height: 40px; color: var(--stamp-dark); font-weight: 600; }
+.legacy-page .trip-tabs { margin-top: 0; margin-bottom: var(--space-5); }
+.legacy-page .trip-subhead { margin-bottom: var(--space-4); }
+
+/* ---- Buttons that have no class get the secondary look (primary styles stay as they were) ---- */
+.legacy-page button:not([class]) { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 40px; padding: .5rem .95rem; border: 1px solid var(--line-dark); border-radius: 10px; background: var(--paper-white); color: var(--ink); font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer; }
+.legacy-page button:not([class]):hover { border-color: var(--ink); }
+.legacy-page .link-danger { min-height: 40px; padding: 0 .4rem; font-size: .85rem; font-weight: 600; }
+.legacy-page .logout-link { display: inline-flex; align-items: center; min-height: 40px; }
+
+/* ---- Cards and tables used across older pages ---- */
+.legacy-page .form-card { border-radius: var(--radius-lg); }
+.legacy-page .form-card::before { content: none; }
+.legacy-page .admin-table-wrap { border-radius: var(--radius); }
+.legacy-page .admin-table th { background: var(--paper); color: var(--ink-muted); }
+.legacy-page .admin-table tbody tr:hover td { background: #fbf8f1; }
+.legacy-page .success-message { padding: .75rem 1rem; border: 1px solid #9cc8b4; border-left: 4px solid var(--route); border-radius: var(--radius-sm); background: #f2f9f5; color: var(--ink); }
+
+/* ---- Auth pages: brand panel beside the form ---- */
+.auth-page { min-height: 100vh; margin: 0; background: var(--paper); }
+.auth-shell { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(0, 1.1fr); min-height: 100vh; }
+.auth-panel { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem; padding: clamp(1.5rem, 4vw, 3.5rem); background: linear-gradient(150deg, #11273c 0%, #183d50 60%, #1f5f52 135%); color: #fff; overflow: hidden; }
+.auth-panel-brand { display: inline-flex; align-items: center; gap: .65rem; color: #fff; text-decoration: none; }
+.auth-panel-brand .app-wordmark { color: #fff; font-size: 1.45rem; }
+.auth-panel-brand .app-wordmark span { color: #f0a283; }
+.auth-panel-brand:focus-visible { outline-color: #fff; }
+.auth-panel-kicker { margin: 0; color: #f0b79d; font-family: var(--mono); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+.auth-panel-title { max-width: 16ch; margin: .7rem 0 0; color: #fff; font-family: var(--serif); font-size: clamp(2rem, 3.6vw, 3.2rem); font-weight: 600; line-height: 1.05; letter-spacing: -.03em; }
+.auth-panel-route { width: 100%; max-width: 560px; height: auto; }
+.auth-page .auth-container { align-self: center; justify-self: center; width: min(100% - 2rem, 440px); max-width: none; margin: 3rem 0; padding: clamp(1.5rem, 4vw, 2.5rem); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.auth-page .auth-container h1 { margin: 0 0 1.2rem; font-size: clamp(1.6rem, 3vw, 2rem); line-height: 1.1; }
+.auth-page .auth-container button[type="submit"] { width: 100%; min-height: 48px; margin-top: 1.4rem; border: 1px solid var(--stamp); border-radius: 10px; background: var(--stamp); color: #fff; font-size: 1rem; box-shadow: none; }
+.auth-page .auth-container button[type="submit"]:hover { background: var(--stamp-dark); }
+.auth-page .auth-alt-action { margin-top: 1rem; }
+.auth-page .auth-alt-action a { display: inline-flex; align-items: center; min-height: 32px; font-weight: 600; }
+.auth-page .success-message { padding: .75rem 1rem; border: 1px solid #9cc8b4; border-left: 4px solid var(--route); border-radius: var(--radius-sm); background: #f2f9f5; }
+
+/* ---- Public information page header ---- */
+.info-brand-mark { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; }
+.info-brand-mark img { width: 32px; height: 32px; }
+
+@media (max-width: 860px) {
+    .auth-shell { grid-template-columns: 1fr; }
+    .auth-panel { gap: 1rem; padding: 1.1rem 1rem 1.3rem; }
+    .auth-panel-title { max-width: none; font-size: 1.45rem; }
+    .auth-panel-route { display: none; }
+    .auth-page .auth-container { margin: 1.25rem 0 2rem; }
+}

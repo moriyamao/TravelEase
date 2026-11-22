@@ -186,16 +186,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Trip — TravelEase</title>
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">
     <link rel="stylesheet" href="/assets/css/auth.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <h1>Edit Trip</h1>
-        </header>
+    <?php $navCurrent = null; require __DIR__ . '/../../includes/partials/app_header.php'; ?>
+    <main class="app-page legacy-page" id="main-content" tabindex="-1">
+        <?php $tripId = (int) $tripId; $tripTab = null; $tripPageTitle = 'Edit trip'; $tripPageLead = null; require __DIR__ . '/../../includes/partials/trip_header.php'; ?>
 
         <div class="form-card">
             <a href="/customer/trips/view.php?id=<?= (int) $tripId ?>" class="logout-link" style="display: inline-block; margin-bottom: 1.25rem;">&larr; Cancel</a>

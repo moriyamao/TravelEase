@@ -16,11 +16,13 @@ $updated = 'November 22, 2026';
     <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/information.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
 <body>
     <main class="info-page">
         <header class="info-header">
-            <a class="info-brand" href="/public/index.php">TravelEase</a>
+            <a class="info-brand-mark" href="/public/index.php"><img src="/assets/images/travelease-logo-mark.svg" alt="" width="32" height="32"><span class="app-wordmark">Travel<span>Ease</span></span></a>
             <a href="/auth/login.php">Sign in</a>
         </header>
 
