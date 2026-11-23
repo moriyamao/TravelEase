@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Each attempt can send an email (Brevo quota), so cap attempts in the
             // database: 10 per IP address and 3 per email address per hour.
             $wait = max(
-                rate_limit_reserve($pdo, rate_limit_key('register_ip', client_ip()), 10, 3600),
+                rate_limit_reserve($pdo, rate_limit_ip_key('register_ip'), 10, 3600),
                 rate_limit_reserve($pdo, rate_limit_key('register_email', $email), 3, 3600)
             );
 

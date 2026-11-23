@@ -24,6 +24,14 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 COPY docker/apache-security.conf /etc/apache2/conf-available/travelease-security.conf
 RUN a2enmod headers && a2enconf travelease-security
 
+# Per-IP rate limits are off by default in this image: Render publishes no
+# ingress IP ranges, so the visitor's address cannot be verified from
+# REMOTE_ADDR or X-Forwarded-For, and a shared proxy bucket would let one
+# visitor lock everyone out. Per-email and per-account limits still apply.
+# Override CLIENT_IP_SOURCE in Render's environment once a client-IP header
+# has been verified (see README, "Known limitations").
+ENV CLIENT_IP_SOURCE=none
+
 # Copy the project into the container (.dockerignore keeps .git, docs and
 # database scripts out of the image)
 COPY . /var/www/html/
