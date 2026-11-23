@@ -1,0 +1,11 @@
+# Kept out of the image (and so out of the web root).
+.git
+.github
+.env
+.env.*
+*.md
+database/
+Dockerfile
+.dockerignore
+.claude
+.codex

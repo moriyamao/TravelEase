@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/email_verification.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 
 // Already logged in? No need to register again.
 if (is_logged_in()) {
@@ -31,15 +32,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($err = validate_password($password))     $errors[] = $err;
         if ($password !== $confirm)                  $errors[] = 'Passwords do not match.';
 
+        // The same message for new and already-registered addresses, so this
+        // form cannot be used to find out who has an account.
+        $registeredMessage = 'If that email can be registered, we sent a verification link to it. Check your inbox before signing in. If nothing arrives, use "Resend verification email" on the sign-in page.';
+
         if (empty($errors)) {
             $pdo = get_db_connection();
+            // Each attempt can send an email (Brevo quota), so cap attempts in the
+            // database: 10 per IP address and 3 per email address per hour.
+            $wait = max(
+                rate_limit_reserve($pdo, rate_limit_ip_key('register_ip'), 10, 3600),
+                rate_limit_reserve($pdo, rate_limit_key('register_email', $email), 3, 3600)
+            );
 
             // Check whether an account with this email already exists.
             $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
             $stmt->execute(['email' => $email]);
 
-            if ($stmt->fetch()) {
-                $errors[] = 'An account with that email already exists.';
+            if ($wait > 0) {
+                $errors[] = 'Too many sign-up attempts. Please try again in about ' . max(1, (int) ceil($wait / 60)) . ' minutes.';
+            } elseif ($stmt->fetch()) {
+                $success = $registeredMessage;
             } else {
                 try {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
@@ -57,11 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $userId = (int) $pdo->lastInsertId();
 
-                    if (send_email_verification($pdo, $userId, $email, $name)) {
-                        $success = 'Account created. Check your email to verify your address before signing in.';
-                    } else {
-                        $success = 'Account created, but we could not send the verification email. Please try again later using "Resend verification email" on the sign-in page.';
+                    if (!send_email_verification($pdo, $userId, $email, $name)) {
+                        error_log('TravelEase: verification email not sent after registration.');
                     }
+                    $success = $registeredMessage;
 
                 } catch (PDOException $e) {
                     error_log('TravelEase registration failed: ' . $e->getMessage());

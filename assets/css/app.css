@@ -44,7 +44,9 @@ main[tabindex="-1"]:focus { outline: none; }
 .app-nav a:hover { background: var(--paper-deep); color: var(--ink); }
 .app-nav a[aria-current="page"] { background: var(--ink); color: #fff; }
 .app-nav .nav-count { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 .35rem; border-radius: 999px; background: var(--stamp); color: #fff; font-size: .7rem; font-weight: 700; }
-.app-nav .nav-signout { color: var(--ink-muted); }
+.app-nav .nav-signout-form { display: inline-flex; margin: 0; }
+.app-nav .nav-signout { display: inline-flex; align-items: center; min-height: 40px; padding: 0 .75rem; border: 0; border-radius: 999px; background: none; color: var(--ink-muted); font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; }
+.app-nav .nav-signout:hover { background: var(--paper-deep); color: var(--ink); }
 
 .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 
@@ -138,7 +140,7 @@ main[tabindex="-1"]:focus { outline: none; }
     .app-brand { min-height: 44px; }
     .app-header { position: static; }
     .app-nav { order: 2; flex-wrap: wrap; width: 100%; gap: .2rem; padding: 0 0 .55rem; }
-    .app-nav a { min-height: 38px; padding: 0 .65rem; font-size: .85rem; }
+    .app-nav a, .app-nav .nav-signout { min-height: 38px; padding: 0 .65rem; font-size: .85rem; }
     .app-page { padding-top: var(--space-4); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }

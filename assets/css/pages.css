@@ -51,3 +51,4 @@
     .auth-panel-route { display: none; }
     .auth-page .auth-container { margin: 1.25rem 0 2rem; }
 }
+.auth-shell-single { grid-template-columns: 1fr; }

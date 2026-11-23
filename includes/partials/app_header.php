@@ -9,6 +9,7 @@
  *   $navCurrent           key of the current nav item, or null
  *   $unreadNotifications  customer badge count; looked up here when not set
  */
+require_once __DIR__ . '/../csrf.php';
 $navCurrent = $navCurrent ?? null;
 $navRole = current_user_role();
 if ($navRole === 'customer' && !isset($unreadNotifications) && isset($pdo)) {
@@ -47,7 +48,7 @@ $navHome = dashboard_path_for_role($navRole);
             <?php foreach ($navItems as $navKey => [$navHref, $navLabel]): ?>
                 <a href="<?= htmlspecialchars($navHref, ENT_QUOTES, 'UTF-8') ?>"<?= $navCurrent === $navKey ? ' aria-current="page"' : '' ?>><?= htmlspecialchars($navLabel, ENT_QUOTES, 'UTF-8') ?><?php if ($navKey === 'notifications' && $navUnread > 0): ?><span class="nav-count"><span class="sr-only">, </span><?= $navUnread > 99 ? '99+' : $navUnread ?><span class="sr-only"> unread</span></span><?php endif; ?></a>
             <?php endforeach; ?>
-            <a href="/auth/logout.php" class="nav-signout">Sign out</a>
+            <form method="post" action="/auth/logout.php" class="nav-signout-form"><?= csrf_field() ?><button type="submit" class="nav-signout">Sign out</button></form>
         </nav>
     </div>
 </header>
