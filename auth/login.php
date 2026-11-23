@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 
 if (is_logged_in()) {
     header('Location: /includes/redirect_dashboard.php');
@@ -13,31 +14,40 @@ if (is_logged_in()) {
 $errors = [];
 $email  = '';
 
-// Very basic login rate limiting per session to slow down brute force.
-// (A production deployment would back this with a persistent store/IP
-// tracking; this is intentionally minimal for the current milestone.)
-$_SESSION['login_attempts'] = $_SESSION['login_attempts'] ?? 0;
-$_SESSION['login_attempts_window'] = $_SESSION['login_attempts_window'] ?? time();
-
-if (time() - $_SESSION['login_attempts_window'] > 300) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['login_attempts_window'] = time();
-}
+// Failed sign-ins are limited in the database (survives new sessions and
+// dropped cookies): 10 per email address and 50 per IP address in 15 minutes.
+// The IP limit is looser because many people can share one address.
+// Each attempt reserves a slot atomically BEFORE the password check, so
+// parallel requests cannot all pass the last free slot; the slot is given
+// back when the attempt is refused or turns out not to be a failure.
+const LOGIN_WINDOW_SECONDS = 900;
+const LOGIN_MAX_FAILURES_PER_EMAIL = 10;
+const LOGIN_MAX_FAILURES_PER_IP = 50;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    if ($_SESSION['login_attempts'] >= 10) {
-        $errors[] = 'Too many login attempts. Please wait a few minutes and try again.';
-    } elseif (!csrf_verify($_POST['csrf_token'] ?? null)) {
+    if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
         $email    = normalize_email($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $pdo = get_db_connection();
+        $emailKey = rate_limit_key('login_email', $email);
+        $ipKey = rate_limit_ip_key('login_ip');   // null: per-IP limit skipped
+
+        $emailWindow = $ipWindow = null;   // the windows the reservations were counted in
+        $refundSlots = function () use ($pdo, $emailKey, $ipKey, &$emailWindow, &$ipWindow): void {
+            rate_limit_refund($pdo, $emailKey, $emailWindow);
+            rate_limit_refund($pdo, $ipKey, $ipWindow);
+        };
 
         if ($email === '' || $password === '') {
             $errors[] = 'Please enter both email and password.';
+        } elseif (max(rate_limit_reserve($pdo, $emailKey, LOGIN_MAX_FAILURES_PER_EMAIL, LOGIN_WINDOW_SECONDS, $emailWindow),
+                      rate_limit_reserve($pdo, $ipKey, LOGIN_MAX_FAILURES_PER_IP, LOGIN_WINDOW_SECONDS, $ipWindow)) > 0) {
+            $refundSlots();   // a refused attempt is not counted as a failure
+            $errors[] = 'Too many sign-in attempts. Please wait a few minutes and try again.';
         } else {
-            $pdo = get_db_connection();
 
             $stmt = $pdo->prepare(
                 'SELECT id, name, email, password_hash, email_verified_at, role FROM users WHERE email = :email LIMIT 1'
@@ -52,13 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // here rather than passing null into password_verify().
             if (!$user || $user['password_hash'] === null
                 || !password_verify($password, $user['password_hash'])) {
-                $_SESSION['login_attempts']++;
+                // The reserved slots stay counted: this is a failure.
                 $errors[] = 'Incorrect email or password.';
             } elseif ($user['email_verified_at'] === null) {
+                $refundSlots();   // correct password: not a failure
                 $errors[] = 'Please verify your email address before signing in. You can request a new verification email below.';
             } else {
-                $_SESSION['login_attempts'] = 0;
-
+                $refundSlots();   // successful sign-in: not a failure
                 session_regenerate_id(true);
                $_SESSION['user_id']    = (int) $user['id'];
                $_SESSION['user_role']  = $user['role'];

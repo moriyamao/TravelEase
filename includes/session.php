@@ -5,7 +5,13 @@
  */
 
 if (session_status() === PHP_SESSION_NONE) {
-    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    // Render terminates TLS at its proxy and forwards plain HTTP, so HTTPS is
+    // empty there; the proxy reports the original scheme in X-Forwarded-Proto.
+    // APP_ENV=production forces Secure regardless. (A forged header can only
+    // make the cookie stricter, never weaker.)
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https'
+        || getenv('APP_ENV') === 'production';
 
     session_set_cookie_params([
         'lifetime' => 0,

@@ -51,6 +51,7 @@
     .auth-panel-route { display: none; }
     .auth-page .auth-container { margin: 1.25rem 0 2rem; }
 }
+.auth-shell-single { grid-template-columns: 1fr; }
 
 /* Compact empty states, so forms below them stay in view */
 .legacy-page .empty-state { max-width: none; margin: .5rem 0 0; padding: .9rem 1.1rem; border-radius: var(--radius-sm); text-align: left; font-size: .92rem; }
