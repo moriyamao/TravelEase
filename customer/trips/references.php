@@ -118,7 +118,7 @@ $renderFields = function () use ($e, $field, $editing): void {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking references — <?= $e($trip['name']) ?> — TravelEase</title>
+    <title>Bookings — <?= $e($trip['name']) ?> — TravelEase</title>
     <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
@@ -130,16 +130,16 @@ $renderFields = function () use ($e, $field, $editing): void {
 <body>
     <?php $navCurrent = null; require __DIR__ . '/../../includes/partials/app_header.php'; ?>
     <main class="app-page legacy-page" id="main-content" tabindex="-1">
-        <?php $tripId = (int) $tripId; $tripTab = 'references'; $tripPageTitle = 'Booking references'; $tripPageLead = null; require __DIR__ . '/../../includes/partials/trip_header.php'; ?>
+        <?php $tripId = (int) $tripId; $tripTab = 'references'; $tripPageTitle = 'Bookings'; $tripPageLead = null; require __DIR__ . '/../../includes/partials/trip_header.php'; ?>
 
         <p class="eyebrow"><?= $e($trip['name']) ?> &middot; <?= $e($trip['destination']) ?></p>
         <?php if ($notice): ?><p class="form-notice" role="status"><?= $e($notice) ?></p><?php endif; ?>
         <?php if ($error): ?><p class="form-errors" role="alert"><?= $e($error) ?></p><?php endif; ?>
-        <p class="reference-note">Keep flight, hotel and tour booking details here. Attachments accept PDF, JPEG or PNG up to 2 MB and follow the reference's visibility. Downloads are files, not safety or authenticity checks.</p>
+        <p class="reference-note">Keep flight, hotel and tour booking details here. Attachments accept PDF, JPEG or PNG up to 2 MB and follow the booking's visibility. Downloads are files, not safety or authenticity checks.</p>
 
         <?php if ($canEdit && $editing): ?>
         <section class="reference-card" aria-labelledby="edit-heading" id="edit">
-            <h2 id="edit-heading">Edit reference</h2>
+            <h2 id="edit-heading">Edit booking</h2>
             <form method="post" action="/customer/trips/reference_action.php" class="reference-form">
                 <?= csrf_field() ?>
                 <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
@@ -156,9 +156,9 @@ $renderFields = function () use ($e, $field, $editing): void {
         <?php endif; ?>
 
         <section class="reference-card" aria-labelledby="list-heading">
-            <h2 id="list-heading">References</h2>
+            <h2 id="list-heading">Your bookings</h2>
             <?php if (!$references): ?>
-                <p class="empty-state">No booking references you can see yet.<?= $canEdit ? ' Add one below.' : '' ?></p>
+                <p class="empty-state">No bookings you can see yet.<?= $canEdit ? ' Add one below.' : '' ?></p>
             <?php else: ?>
                 <ul class="reference-list">
                     <?php foreach ($references as $r): ?>
@@ -215,7 +215,7 @@ $renderFields = function () use ($e, $field, $editing): void {
                                 <div class="reference-actions">
                                     <a href="/customer/trips/references.php?id=<?= (int) $tripId ?>&amp;edit=<?= (int) $r['id'] ?>#edit">Edit</a>
                                     <form method="post" action="/customer/trips/reference_action.php" class="inline-form"
-                                          onsubmit="return confirm('Delete this booking reference?');">
+                                          onsubmit="return confirm('Delete this booking?');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
                                         <input type="hidden" name="action" value="delete">
@@ -233,14 +233,14 @@ $renderFields = function () use ($e, $field, $editing): void {
 
         <?php if ($canEdit && !$editing): ?>
         <section class="reference-card" aria-labelledby="add-heading">
-            <h2 id="add-heading">Add a reference</h2>
+            <h2 id="add-heading">Add a booking</h2>
             <form method="post" action="/customer/trips/reference_action.php" class="reference-form">
                 <?= csrf_field() ?>
                 <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
                 <input type="hidden" name="action" value="create">
                 <?php $renderFields(); ?>
-                <p class="reference-note">Private references are visible only to the person who added them and the trip owner. Booking references are not sent to the AI assistant.</p>
-                <button type="submit">Add reference</button>
+                <p class="reference-note">Private bookings are visible only to the person who added them and the trip owner. Bookings are not sent to the AI assistant.</p>
+                <button type="submit">Add booking</button>
             </form>
         </section>
         <?php endif; ?>

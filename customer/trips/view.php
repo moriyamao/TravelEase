@@ -238,13 +238,13 @@ $activityTotal = (int) $progress['activities']['total'];
 $budgetAmount = $trip['budget_amount'] !== null ? (float) $trip['budget_amount'] : null;
 $budgetUsed = $budgetAmount ? min(100, (int) round($totalActual / $budgetAmount * 100)) : null;
 $unreadNotifications = count_unread_notifications($pdo, (int) current_user_id());
-$navCurrent = $trip['archived_at'] !== null ? 'archived' : 'trips';
+$navCurrent = 'trips';
 $roleLabel = ucfirst($tripRole);
 $roleHelp = [
-    'owner' => 'You can edit everything and manage members.',
-    'editor' => 'You can edit the itinerary.',
-    'commenter' => 'You can vote and comment.',
-    'viewer' => 'You can view this trip.',
+    'owner' => 'Can edit everything and manage travelers.',
+    'editor' => 'Can edit the itinerary.',
+    'commenter' => 'Can vote and comment.',
+    'viewer' => 'View only.',
 ][$tripRole] ?? '';
 $planOpen = $recommendations || $recommendationError;
 ?>
@@ -316,7 +316,7 @@ $planOpen = $recommendations || $recommendationError;
                 <?php if ($activityTotal > 0): ?><div class="meter" aria-hidden="true"><span style="width: <?= (int) round($activityDone / $activityTotal * 100) ?>%"></span></div><?php endif; ?>
             </div>
             <div class="summary-tile">
-                <span class="summary-label">Spent so far</span>
+                <span class="summary-label">Itinerary spending</span>
                 <strong><?= $money($totalActual) ?></strong>
                 <?php if ($budgetUsed !== null): ?>
                     <div class="meter<?= $totalActual > $budgetAmount ? ' is-over' : '' ?>" aria-hidden="true"><span style="width: <?= $budgetUsed ?>%"></span></div>
@@ -651,7 +651,7 @@ $planOpen = $recommendations || $recommendationError;
                                 <span><span class="assist-tool-title">Review my plan</span><span class="assist-tool-sub">Budget tips, schedule fixes and ideas</span></span>
                             </summary>
                             <div class="assist-tool-body">
-                                <p class="assist-privacy">Sent to the AI service: destination, dates, budget, and each activity's title, date, times, category, place name and estimated cost. Notes, comments, expenses, booking references, reminders and member details are not sent. Up to <?= PLAN_REVIEW_LIMIT_PER_HOUR ?> reviews an hour.</p>
+                                <p class="assist-privacy">Sent to the AI service: destination, dates, budget, and each activity's title, date, times, category, place name and estimated cost. Notes, comments, expenses, bookings, reminders and member details are not sent. Up to <?= PLAN_REVIEW_LIMIT_PER_HOUR ?> reviews an hour.</p>
                                 <form method="post" action="/customer/trips/plan_review.php" class="plan-review-request">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="trip_id" value="<?= (int) $tripId ?>">
@@ -776,8 +776,7 @@ $planOpen = $recommendations || $recommendationError;
                     <h2 id="progress-title" class="card-title">Progress</h2>
                     <dl class="progress-list">
                         <?php foreach ([
-                            'activities' => ['Activities completed', '/customer/trips/view.php?id=' . (int) $tripId . '#itinerary', 'No activities yet'],
-                            'references' => ['Booking references confirmed', '/customer/trips/references.php?id=' . (int) $tripId, 'No booking references yet'],
+                            'references' => ['Bookings confirmed', '/customer/trips/references.php?id=' . (int) $tripId, 'No bookings yet'],
                             'expenses'   => ['Expense shares settled', '/customer/trips/expenses.php?id=' . (int) $tripId, 'No shares owed yet'],
                             'reminders'  => ['Your due reminders acknowledged', '/customer/trips/reminders.php?id=' . (int) $tripId, 'None of your reminders are due yet'],
                         ] as $key => [$label, $href, $emptyText]): ?>
@@ -795,7 +794,7 @@ $planOpen = $recommendations || $recommendationError;
                     </dl>
                     <details class="progress-help">
                         <summary>How progress is counted</summary>
-                        <p>Booking references count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). Reminders count only your own reminders that are due and not cancelled. There is no overall percentage.</p>
+                        <p>Activity completion is shown at the top of the page. Bookings count only the ones you can see. Expense shares count money owed to someone else (a payer&#039;s own share is not counted). Reminders count only your own reminders that are due and not cancelled. There is no overall percentage.</p>
                     </details>
                 </section>
 
@@ -804,7 +803,7 @@ $planOpen = $recommendations || $recommendationError;
                         <h2 id="members-title" class="card-title">Travelers</h2>
                         <span class="chip chip-role"><?= $h($roleLabel) ?></span>
                     </div>
-                    <p class="card-note">Your role: <strong><?= $h($roleLabel) ?></strong><?= $canEditItinerary ? '' : ' (view only)' ?>. <?= $h($roleHelp) ?></p>
+                    <p class="card-note">Your role: <strong><?= $h($roleLabel) ?></strong>. <?= $h($roleHelp) ?></p>
                     <?php if ($memberNotice): ?><p class="notice notice-success" role="status"><?= $h($memberNotice) ?></p><?php endif; ?>
                     <?php if ($memberError): ?><p class="notice notice-error" role="alert"><?= $h($memberError) ?></p><?php endif; ?>
                     <ul class="member-list">
@@ -917,8 +916,6 @@ $planOpen = $recommendations || $recommendationError;
                 <section class="card" aria-labelledby="details-title">
                     <h2 id="details-title" class="card-title">Trip details</h2>
                     <dl class="kv-list kv-stacked">
-                        <div><dt>Destination</dt><dd><?= $h($trip['destination']) ?></dd></div>
-                        <div><dt>Trip dates</dt><dd><?= $h(date('M j', $startTs)) ?> &mdash; <?= $h(date('M j, Y', $endTs)) ?></dd></div>
                         <div><dt>Currency</dt><dd><?= $h($trip['budget_currency']) ?></dd></div>
                         <?php if (!empty($trip['notes'])): ?>
                             <div><dt>Notes</dt><dd class="trip-notes"><?= nl2br($h($trip['notes'])) ?></dd></div>
@@ -930,7 +927,6 @@ $planOpen = $recommendations || $recommendationError;
                     <section class="card card-settings" aria-labelledby="settings-title">
                         <h2 id="settings-title" class="card-title">Trip settings</h2>
                         <div class="settings-actions">
-                            <a href="/customer/trips/edit.php?id=<?= (int) $trip['id'] ?>" class="btn-secondary btn-sm">Edit trip</a>
                             <form method="post" action="/customer/trips/archive.php">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="trip_id" value="<?= (int) $trip['id'] ?>">
@@ -952,6 +948,7 @@ $planOpen = $recommendations || $recommendationError;
 
     <?php require __DIR__ . '/../../includes/partials/chat_widget.php'; ?>
     <?php require __DIR__ . '/../../includes/partials/support_chathead.php'; ?>
+    <?php require __DIR__ . '/../../includes/partials/support_launcher.php'; ?>
     <script src="/assets/js/trip-page.js" defer></script>
 </body>
 </html>

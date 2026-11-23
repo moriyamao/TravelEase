@@ -47,9 +47,9 @@ const TRIP_ACTIVITY_EVENTS = [
     'expense_removed'       => '{actor} removed the expense "{details}"',
     'expense_share_settled' => '{actor} marked a share of "{details}" as settled',
     'expense_share_reopened' => '{actor} reopened a share of "{details}"',
-    'reference_added'       => '{actor} added a booking reference',
-    'reference_updated'     => '{actor} updated a booking reference',
-    'reference_deleted'     => '{actor} removed a booking reference',
+    'reference_added'       => '{actor} added a booking',
+    'reference_updated'     => '{actor} updated a booking',
+    'reference_deleted'     => '{actor} removed a booking',
     'support_access_shared'  => '{actor} shared this trip with TravelEase support',
     'support_access_revoked' => '{actor} stopped sharing this trip with TravelEase support',
 ];

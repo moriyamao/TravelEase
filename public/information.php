@@ -48,8 +48,8 @@ $updated = 'November 22, 2026';
             <h3>What the service is</h3>
             <p>
                 You can create trips, plan a day-by-day itinerary, track a budget and shared expenses, save places on a map,
-                keep booking references, set reminders and invite other TravelEase users to collaborate. Expense balances are
-                informational only: TravelEase never sends, receives or holds money. Booking references are notes you enter;
+                keep bookings, set reminders and invite other TravelEase users to collaborate. Expense balances are
+                informational only: TravelEase never sends, receives or holds money. Bookings are notes you enter;
                 TravelEase does not make, change or verify bookings.
             </p>
             <h3>Your account</h3>
@@ -62,7 +62,7 @@ $updated = 'November 22, 2026';
                 Trips are private, not a public feed. A trip owner can invite another verified TravelEase user by their exact
                 email address and give them a role: Editor (changes the itinerary, expenses, places and references), Commenter
                 (votes and comments) or Viewer (read only). Everyone on a trip can see its shared details, such as the
-                itinerary, comments, expenses, saved places and activity history, except booking references marked as limited
+                itinerary, comments, expenses, saved places and activity history, except bookings marked as limited
                 or private, and other members' personal reminders. The owner can change roles, remove members and transfer
                 ownership. Access ends as soon as someone is removed or leaves.
             </p>
@@ -85,7 +85,7 @@ $updated = 'November 22, 2026';
             <ul>
                 <li>Your account: name, email address, a hashed password (or your Google account ID), role, email-verification status and notification settings.</li>
                 <li>An optional profile picture you upload. It is stored on the application server, not in separate long-term storage, so it can be lost when the service is redeployed.</li>
-                <li>Trip content you and your co-travellers enter: trip details and time zone, itinerary activities, votes and comments, budgets and expenses, saved places, booking references, reminders and invitations.</li>
+                <li>Trip content you and your co-travellers enter: trip details and time zone, itinerary activities, votes and comments, budgets and expenses, saved places, bookings, reminders and invitations.</li>
                 <li>An activity history for each trip, and in-app notifications. These use general wording and do not copy comment text, booking codes or reminder titles.</li>
                 <li>Support conversations that are passed to staff (see the AI disclaimer).</li>
             </ul>
@@ -93,7 +93,7 @@ $updated = 'November 22, 2026';
             <ul>
                 <li>Trip members see a trip's shared content according to their role, as described above.</li>
                 <li>Personal reminders are visible only to the person they belong to, not even the trip owner.</li>
-                <li>Support staff see the support conversations passed to them and how many trips that customer is on. They see a trip's details and itinerary only if its owner shares it from an open support request, read-only and only until the owner stops sharing, the request is resolved or the trip changes owner. They never see comments, expenses, booking references, reminders or other members' identities, and cannot change trips.</li>
+                <li>Support staff see the support conversations passed to them and how many trips that customer is on. They see a trip's details and itinerary only if its owner shares it from an open support request, read-only and only until the owner stops sharing, the request is resolved or the trip changes owner. They never see comments, expenses, bookings, reminders or other members' identities, and cannot change trips.</li>
                 <li>Administrators can list user accounts, change roles and delete accounts.</li>
             </ul>
             <h3>Private attachments</h3>
@@ -113,7 +113,7 @@ $updated = 'November 22, 2026';
                 or the owner revokes it. Transferring the trip's ownership or removing a member also revokes all of that trip's
                 links. A <strong>view-only link</strong> shows, without signing in, the destination, the trip dates, the time zone
                 and each activity's date, times, title and location. It never shows the trip name, notes, costs, budgets,
-                comments, votes, members, booking references or reminders. A <strong>join link</strong> shows the destination and
+                comments, votes, members, bookings or reminders. A <strong>join link</strong> shows the destination and
                 dates, and lets a signed-in, verified customer join the trip as a Viewer after confirming.
             </p>
             <p>
@@ -155,7 +155,7 @@ $updated = 'November 22, 2026';
             <h3>Trip ideas</h3>
             <p>
                 When you ask for activity ideas, only the trip's destination, dates, currency, budget, and the interests and pace you
-                choose are sent to Groq. Names, emails, notes, comments, expenses, booking references and reminders are not sent.
+                choose are sent to Groq. Names, emails, notes, comments, expenses, bookings and reminders are not sent.
                 Ideas are drafts: nothing is added to your trip until someone with permission reviews it and chooses to add it.
                 Check opening hours, prices, safety and travel requirements yourself before relying on any suggestion.
             </p>
@@ -163,7 +163,7 @@ $updated = 'November 22, 2026';
             <p>
                 When an owner or editor presses "Review my plan", Groq receives the trip's destination, dates, time zone, currency,
                 budget and cost totals, and for each activity its title, date, start and end time, category, saved place name and
-                estimated cost, plus the app's own schedule warnings. Notes, comments, votes, expenses, booking references,
+                estimated cost, plus the app's own schedule warnings. Notes, comments, votes, expenses, bookings,
                 reminders and member names or emails are not sent. Groq returns budget tips, ideas and suggested time changes.
                 A time change is only made when someone with permission presses Apply on it. It is refused if the trip or any of its
                 activities changed after the review, and applying one change ends that review. Suggestions are not saved; they disappear after 30 minutes. Each account can request up

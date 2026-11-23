@@ -92,7 +92,7 @@ $dateRange = function (string $start, string $end): string {
     return date('Y', $s) === date('Y', $e) ? date('M j', $s) . ' – ' . date('M j, Y', $e) : date('M j, Y', $s) . ' – ' . date('M j, Y', $e);
 };
 $tripDays = fn(string $start, string $end): int => (int) round((strtotime($end) - strtotime($start)) / 86400) + 1;
-$navCurrent = $showArchived ? 'archived' : 'trips';
+$navCurrent = 'trips';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -160,7 +160,6 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
                 <p class="section-lead"><?= $showArchived ? 'Trips you filed away. Archiving never deletes a trip, and you can restore it from its page.' : 'Every route, date and plan, kept together in one calm place.' ?></p>
             </div>
             <div class="home-welcome-actions">
-                <?php if (!$nextTrip): ?><button type="button" class="btn-secondary" id="dashboard-open-chat">Ask support</button><?php endif; ?>
                 <a href="/customer/trips/create.php" class="btn-primary"><span aria-hidden="true">+</span> Plan a trip</a>
             </div>
         </section>
@@ -190,10 +189,6 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
                     <div class="stat"><strong><?= $statusCounts['confirmed'] ?></strong><span>Confirmed</span></div>
                     <div class="stat"><strong><?= $statusCounts['completed'] ?></strong><span>Completed</span></div>
                     <div class="stat"><strong><?= $tripCount ?></strong><span>Trips you own</span></div>
-                    <button type="button" class="stat stat-action" id="dashboard-open-chat">
-                        <span class="stat-action-title">Need a hand?</span>
-                        <span>Ask TravelEase support <span aria-hidden="true">→</span></span>
-                    </button>
                 </aside>
             </section>
         <?php endif; ?>
@@ -288,19 +283,12 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
 
     <?php require __DIR__ . '/../includes/partials/chat_widget.php'; ?>
     <?php require __DIR__ . '/../includes/partials/support_chathead.php'; ?>
+    <?php require __DIR__ . '/../includes/partials/support_launcher.php'; ?>
 
     <script>
         (function () {
             const lists = Array.from(document.querySelectorAll('[data-trip-list]'));
             const cards = lists.flatMap((list) => Array.from(list.querySelectorAll('.journey')));
-            const dashboardChatButton = document.getElementById('dashboard-open-chat');
-
-            if (dashboardChatButton) {
-                dashboardChatButton.addEventListener('click', function () {
-                    document.getElementById('te-chat-toggle')?.click();
-                });
-            }
-
             if (!cards.length) return;
 
             const searchInput = document.getElementById('trip-search');

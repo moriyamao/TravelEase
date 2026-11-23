@@ -18,12 +18,12 @@ $stmt->execute(['user_id' => current_user_id()]);
 $__openEscalation = $stmt->fetch();
 ?>
 <?php if ($__openEscalation): ?>
-<div id="te-support-chathead" class="te-chat-widget" data-escalation-id="<?= (int) $__openEscalation['id'] ?>" style="right: 5.5rem;">
-    <button id="te-support-toggle" class="te-chat-toggle" type="button" aria-label="Open support conversation" style="background: var(--route, #2F7A5C);">💬</button>
+<div id="te-support-chathead" class="te-chat-widget" data-escalation-id="<?= (int) $__openEscalation['id'] ?>">
+    <button id="te-support-toggle" class="te-chat-toggle" type="button" aria-label="Open your conversation with support staff" hidden>💬</button>
 
     <div id="te-support-panel" class="te-chat-panel" hidden>
         <div class="te-chat-header" style="background: var(--route, #2F7A5C);">
-            <span>Your Support Request</span>
+            <span>Support staff <small class="te-chat-tag">Your request</small></span>
             <button id="te-support-close" type="button" aria-label="Close">&times;</button>
         </div>
         <p class="te-support-share"><a href="/customer/support_access.php">Share a trip with support</a> (optional, read-only)</p>

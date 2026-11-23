@@ -136,3 +136,21 @@
     text-decoration: underline;
 }.te-support-share { margin: 0; padding: .45rem .8rem; border-bottom: 1px solid var(--line); font-size: .78rem; color: var(--ink-muted); }
 .te-support-share a { color: var(--route, #2F7A5C); font-weight: 700; }
+
+/* One Help launcher (replaces the two floating chat buttons) */
+.te-chat-toggle[hidden] { display: none; }
+.te-chat-tag { margin-left: .35rem; padding: .05rem .4rem; border: 1px solid rgba(255, 255, 255, .5); border-radius: 999px; font-size: .68rem; font-weight: 600; letter-spacing: .02em; vertical-align: .1em; }
+.te-launcher { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 1001; display: flex; flex-direction: column; align-items: flex-end; gap: .6rem; font-family: inherit; }
+.te-launcher-button { display: inline-flex; align-items: center; gap: .5rem; min-height: 48px; padding: 0 1.1rem 0 .55rem; border: 0; border-radius: 999px; background: var(--ink, #172b42); color: #fff; font: inherit; font-size: .95rem; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, .22); cursor: pointer; }
+.te-launcher-button:hover { background: #22405f; }
+.te-launcher-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--stamp, #bd4d28); font-size: 1rem; }
+.te-launcher-dot { width: 10px; height: 10px; margin-left: .1rem; border-radius: 50%; background: #5fd39a; box-shadow: 0 0 0 2px var(--ink, #172b42); }
+.te-launcher-menu { width: min(300px, calc(100vw - 2rem)); padding: .6rem; border: 1px solid var(--line, #ddd7ca); border-radius: 14px; background: var(--paper-white, #fffefb); box-shadow: 0 12px 30px rgba(0, 0, 0, .18); }
+.te-launcher-menu[hidden] { display: none; }
+.te-launcher-title { margin: .2rem .5rem .5rem; color: var(--ink-muted, #5f625c); font-size: .8rem; font-weight: 600; }
+.te-launcher-option { display: grid; gap: .15rem; width: 100%; padding: .7rem .75rem; border: 0; border-radius: 10px; background: none; color: var(--ink, #172b42); font: inherit; text-align: left; cursor: pointer; }
+.te-launcher-option:hover, .te-launcher-option:focus-visible { background: var(--paper-deep, #ece6d8); }
+.te-launcher-option strong { font-size: .92rem; }
+.te-launcher-option span { color: var(--ink-muted, #5f625c); font-size: .8rem; }
+.te-chat-widget .te-chat-panel { bottom: 4.25rem; }
+@media (max-width: 480px) { .te-launcher { right: 1rem; bottom: 1rem; } }

@@ -121,7 +121,7 @@ $e = fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
             </p>
             <p>
                 A shared trip shows its name, destination, dates, status, time zone and itinerary activities (date, times, title,
-                category, location and notes) as read-only. It does not show comments, votes, expenses, booking references,
+                category, location and notes) as read-only. It does not show comments, votes, expenses, bookings,
                 reminders, or other members' names or emails.
             </p>
             <p>

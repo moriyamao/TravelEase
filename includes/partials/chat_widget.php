@@ -9,11 +9,11 @@ $__chatUserName  = $_SESSION['user_name']  ?? '';
 $__chatUserEmail = $_SESSION['user_email'] ?? '';
 ?>
 <div id="te-chat-widget" class="te-chat-widget" data-user-name="<?= htmlspecialchars($__chatUserName, ENT_QUOTES, 'UTF-8') ?>" data-user-email="<?= htmlspecialchars($__chatUserEmail, ENT_QUOTES, 'UTF-8') ?>">
-    <button id="te-chat-toggle" class="te-chat-toggle" type="button" aria-label="Open support chat">💬</button>
+    <button id="te-chat-toggle" class="te-chat-toggle" type="button" aria-label="Open the TravelEase assistant" hidden>💬</button>
 
     <div id="te-chat-panel" class="te-chat-panel" hidden>
         <div class="te-chat-header">
-            <span>TravelEase Support</span>
+            <span>TravelEase assistant <small class="te-chat-tag">AI</small></span>
             <button id="te-chat-close" type="button" aria-label="Close chat">&times;</button>
         </div>
         <div id="te-chat-messages" class="te-chat-messages"></div>

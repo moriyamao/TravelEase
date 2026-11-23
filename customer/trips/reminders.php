@@ -113,10 +113,12 @@ $emailLabels = [
                         <input id="reminder-due" name="due_local" type="datetime-local" required min="<?= $e($minLocal) ?>" aria-describedby="reminder-due-help">
                     </div>
                 </div>
-                <p class="reminder-note" id="reminder-due-help">
-                    Enter a future time in the trip's time zone (up to 20 new reminders an hour). If clocks move forward and that time does not exist, choose another time.
-                    If clocks move back and the time happens twice, the earlier one is used. The saved moment does not change if the trip's zone changes later.
-                </p>
+                <p class="reminder-note" id="reminder-due-help">Enter a future time in the trip's time zone (<?= $e(str_replace('_', ' ', $trip['time_zone'])) ?>).</p>
+                <details class="reminder-help">
+                    <summary>How reminder times work</summary>
+                    <p>You can add up to 20 new reminders an hour. If clocks move forward and that time does not exist, choose another time.
+                    If clocks move back and the time happens twice, the earlier one is used. The saved moment does not change if the trip's zone changes later.</p>
+                </details>
                 <button type="submit">Add reminder</button>
             </form>
             <?php endif; ?>

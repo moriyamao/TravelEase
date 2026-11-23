@@ -22,7 +22,7 @@ $tripId = filter_var($_POST['trip_id'] ?? null, FILTER_VALIDATE_INT, ['options' 
 $action = $_POST['action'] ?? null;
 if (!$tripId || !in_array($action, ['create', 'update', 'delete'], true)) {
     http_response_code(400);
-    exit('Choose a valid trip and reference action.');
+    exit('Choose a valid trip and booking action.');
 }
 $pdo = get_db_connection();
 require_trip_permission($pdo, $tripId, 'edit_itinerary');
@@ -34,16 +34,16 @@ try {
         $referenceId = filter_var($_POST['reference_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 4294967295]]);
         $version = filter_var($_POST['version'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 4294967295]]);
         if (!$referenceId || !$version) {
-            throw new InvalidArgumentException('Choose a valid reference and version.');
+            throw new InvalidArgumentException('Choose a valid booking and version.');
         }
         $stmt = $pdo->prepare('SELECT * FROM trip_references WHERE id = :id AND trip_id = :trip FOR UPDATE');
         $stmt->execute(['id' => $referenceId, 'trip' => $tripId]);
         $reference = $stmt->fetch();
         if (!$reference || !trip_reference_visible($reference, $role, (int) current_user_id())) {
-            throw new OutOfBoundsException('Reference not found.');
+            throw new OutOfBoundsException('Booking not found.');
         }
         if ($version !== (int) $reference['version']) {
-            throw new DomainException('This reference changed. Reload and try again.');
+            throw new DomainException('This booking changed. Reload and try again.');
         }
     }
     if ($action === 'delete') {
@@ -85,12 +85,12 @@ try {
         $stmt->execute($values);
     }
     if ($stmt->rowCount() !== 1) {
-        throw new DomainException('This reference changed. Reload and try again.');
+        throw new DomainException('This booking changed. Reload and try again.');
     }
     // Trip history is visible to all members. Never put reference content there.
     log_trip_activity($pdo, $tripId, $event);
     $pdo->commit();
-    $_SESSION['reference_notice'][$tripId] = 'Reference saved.';
+    $_SESSION['reference_notice'][$tripId] = 'Booking saved.';
 } catch (OutOfBoundsException | DomainException $e) {
     $pdo->rollBack();
     http_response_code($e instanceof OutOfBoundsException ? 404 : 409);
@@ -103,7 +103,7 @@ try {
         $pdo->rollBack();
     }
     error_log('TravelEase: reference write failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
-    $_SESSION['reference_error'][$tripId] = 'Could not save the reference. Please try again.';
+    $_SESSION['reference_error'][$tripId] = 'Could not save the booking. Please try again.';
 }
 header('Location: /customer/trips/references.php?id=' . $tripId);
 exit;
