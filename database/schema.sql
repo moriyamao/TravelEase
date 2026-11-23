@@ -435,3 +435,12 @@ CREATE TABLE IF NOT EXISTS trip_document_upload_attempts (
     INDEX idx_document_attempt_cleanup (created_at),
     CONSTRAINT fk_document_attempt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Security hardening: database-backed rate limits for sign-in, registration
+-- and the support chat. limit_key = sha256(bucket|subject).
+CREATE TABLE IF NOT EXISTS rate_limits (
+    limit_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    window_started DATETIME NOT NULL,
+    attempts INT UNSIGNED NOT NULL,
+    INDEX idx_rate_limits_window (window_started)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

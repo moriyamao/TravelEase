@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/chat_ai.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 
 header('Content-Type: application/json');
 
@@ -23,23 +24,22 @@ if (!csrf_verify($input['csrf_token'] ?? null)) {
     exit;
 }
 
-// Simple per-session rate limit: 10 messages per 5 minutes. Matches
-// the existing per-session (not IP-based) approach already used for
-// login attempts elsewhere in this app -- consistent, no new infra.
-$_SESSION['chat_requests'] = $_SESSION['chat_requests'] ?? [];
-$_SESSION['chat_requests'] = array_values(array_filter(
-    $_SESSION['chat_requests'],
-    fn($ts) => $ts > time() - 300
-));
-
-if (count($_SESSION['chat_requests']) >= 10) {
+// 10 messages per 5 minutes per account, counted in the database so signing
+// out and back in (a new session) does not reset it. Fails closed.
+try {
+    $chatWait = rate_limit_reserve(get_db_connection(), rate_limit_key('chat_user', (string) current_user_id()), 10, 300);
+} catch (PDOException $e) {
+    error_log('TravelEase: chat rate limit unavailable (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
+    http_response_code(503);
+    echo json_encode(['error' => 'The assistant is unavailable right now. Please try again later.']);
+    exit;
+}
+if ($chatWait > 0) {
     http_response_code(429);
-    header('Retry-After: 60');
+    header('Retry-After: ' . $chatWait);
     echo json_encode(['error' => 'Too many messages. Please wait a moment before trying again.']);
     exit;
 }
-
-$_SESSION['chat_requests'][] = time();
 
 $message = trim((string) ($input['message'] ?? ''));
 

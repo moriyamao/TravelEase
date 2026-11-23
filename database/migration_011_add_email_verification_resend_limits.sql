@@ -1,6 +1,6 @@
--- Two migration_011 files create the same table (only the FK name differs).
--- Run at most ONE, and only if email_verification_resend_limits does not exist.
--- schema.sql uses fk_email_verification_resend_limit_user (the *_email_verification_resend_limits.sql file).
+-- The canonical migration 011 (the Aiven runner and schema.sql use this file and
+-- its fk_email_verification_resend_limit_user name). A duplicate copy with a
+-- different FK name was removed; run this only if the table does not exist yet.
 CREATE TABLE email_verification_resend_limits (
     user_id INT UNSIGNED NOT NULL,
     ip_address VARCHAR(45) NOT NULL,

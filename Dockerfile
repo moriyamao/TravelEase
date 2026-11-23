@@ -18,7 +18,14 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Copy the project into the container
+# Security hardening: deny direct web access to internal folders and files,
+# and send site-wide security headers. Copied after the sed lines above so
+# its /var/www/html paths are not rewritten.
+COPY docker/apache-security.conf /etc/apache2/conf-available/travelease-security.conf
+RUN a2enmod headers && a2enconf travelease-security
+
+# Copy the project into the container (.dockerignore keeps .git, docs and
+# database scripts out of the image)
 COPY . /var/www/html/
 
 # profile.php writes uploaded profile pictures here via move_uploaded_file();

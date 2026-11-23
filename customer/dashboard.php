@@ -43,18 +43,6 @@ $stmt = $pdo->prepare(
 $stmt->execute(['user_id' => current_user_id(), 'status' => 'pending']);
 $pendingInvitations = $stmt->fetchAll();
 
-// Unread staff replies to this customer's own support requests.
-$stmt = $pdo->prepare(
-    'SELECT id, message, staff_reply, replied_at
-     FROM escalations
-     WHERE user_id = :user_id
-       AND staff_reply IS NOT NULL
-       AND customer_seen_at IS NULL
-     ORDER BY replied_at DESC'
-);
-$stmt->execute(['user_id' => current_user_id()]);
-$unreadReplies = $stmt->fetchAll();
-
 $dashboardNotice = $_SESSION['dashboard_notice'] ?? null;
 unset($_SESSION['dashboard_notice']);
 
@@ -117,7 +105,7 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
             <p class="notice notice-success" role="status"><?= $h($dashboardNotice) ?></p>
         <?php endif; ?>
 
-        <?php if ($pendingInvitations || $unreadReplies): ?>
+        <?php if ($pendingInvitations): ?>
             <section class="home-attention" aria-labelledby="attention-heading">
                 <h2 id="attention-heading" class="eyebrow">Needs your attention</h2>
                 <?php foreach ($pendingInvitations as $invitation): ?>
@@ -133,20 +121,6 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
                             <input type="hidden" name="issue_no" value="<?= (int) $invitation['issue_no'] ?>">
                             <button name="decision" value="accept" class="btn-primary btn-sm">Accept</button>
                             <button name="decision" value="decline" class="btn-secondary btn-sm">Decline</button>
-                        </form>
-                    </article>
-                <?php endforeach; ?>
-                <?php foreach ($unreadReplies as $reply): ?>
-                    <article class="attention-card attention-support">
-                        <div>
-                            <p class="attention-kind">Support reply</p>
-                            <p class="attention-title"><strong>Support replied to your request</strong></p>
-                            <p class="attention-detail"><?= nl2br($h($reply['staff_reply'])) ?></p>
-                        </div>
-                        <form method="POST" action="/customer/dismiss_escalation_reply.php" class="attention-actions">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="escalation_id" value="<?= (int) $reply['id'] ?>">
-                            <button type="submit" class="btn-ghost btn-sm">Dismiss</button>
                         </form>
                     </article>
                 <?php endforeach; ?>
