@@ -41,7 +41,7 @@ $escalations = $stmt->fetchAll();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support Queue — TravelEase</title>
-    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg?v=2" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/chat-widget.css">

@@ -65,7 +65,7 @@ $when = fn($value) => $value === null ? '' : gmdate('M j, Y, H:i', $utc($value))
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <title>Share links — TravelEase</title>
-    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg?v=2" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/trips.css">

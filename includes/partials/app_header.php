@@ -39,7 +39,7 @@ $navHome = dashboard_path_for_role($navRole);
 <header class="app-header">
     <div class="app-header-inner">
         <a class="app-brand" href="<?= htmlspecialchars($navHome, ENT_QUOTES, 'UTF-8') ?>">
-            <img src="/assets/images/travelease-logo-mark.svg" alt="" width="34" height="34">
+            <img src="/assets/images/travelease-logo-mark.svg?v=2" alt="" width="34" height="34">
             <span class="app-wordmark">Travel<span>Ease</span></span>
             <?php if ($navRole === 'staff' || $navRole === 'admin'): ?><span class="app-role-tag"><?= $navRole === 'staff' ? 'Staff' : 'Admin' ?></span><?php endif; ?>
         </a>

@@ -100,7 +100,7 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $showArchived ? 'Archived trips' : 'My trips' ?> — TravelEase</title>
-    <link rel="icon" href="/assets/images/travelease-logo-mark.svg" type="image/svg+xml">
+    <link rel="icon" href="/assets/images/travelease-logo-mark.svg?v=2" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/tokens.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261103-2">
     <link rel="stylesheet" href="/assets/css/trips.css">
@@ -231,7 +231,7 @@ $navCurrent = $showArchived ? 'archived' : 'trips';
             <h3 class="list-heading">Trips you own <span class="list-count"><?= $tripCount ?></span></h3>
             <?php if (empty($trips)): ?>
                 <div class="home-empty">
-                    <img src="/assets/images/travelease-logo-mark.svg" alt="">
+                    <img src="/assets/images/travelease-logo-mark.svg?v=2" alt="">
                     <h4><?= $showArchived ? 'No archived trips you own.' : 'Your next journey starts here.' ?></h4>
                     <p><?= $showArchived ? 'Archive a trip from its trip page. Archiving never deletes it.' : 'Create your first trip to organize destinations, dates, activities, and budget.' ?></p>
                     <?php if (!$showArchived): ?><a href="/customer/trips/create.php" class="btn-primary">Plan your first trip</a><?php endif; ?>
