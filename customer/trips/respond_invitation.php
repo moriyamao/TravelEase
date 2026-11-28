@@ -83,7 +83,7 @@ try {
     exit;
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    error_log('TravelEase: invitation response failed: ' . $e->getMessage());
+    error_log('TravelEase: invitation response failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     http_response_code(500);
     die('Could not respond to the invitation. Please try again.');
 }

@@ -11,7 +11,7 @@
 $stmt = $pdo->prepare(
     'SELECT id FROM escalations
      WHERE user_id = :user_id AND status = "open"
-     ORDER BY created_at DESC
+     ORDER BY created_at DESC, id DESC
      LIMIT 1'
 );
 $stmt->execute(['user_id' => current_user_id()]);
@@ -21,16 +21,16 @@ $__openEscalation = $stmt->fetch();
 <div id="te-support-chathead" class="te-chat-widget" data-escalation-id="<?= (int) $__openEscalation['id'] ?>">
     <button id="te-support-toggle" class="te-chat-toggle" type="button" aria-label="Open your conversation with support staff" hidden>💬</button>
 
-    <div id="te-support-panel" class="te-chat-panel" hidden>
+    <div id="te-support-panel" class="te-chat-panel" role="region" aria-label="Support staff conversation" hidden>
         <div class="te-chat-header" style="background: var(--route, #2F7A5C);">
             <span>Support staff <small class="te-chat-tag">Your request</small></span>
-            <button id="te-support-close" type="button" aria-label="Close">&times;</button>
+            <button id="te-support-close" type="button" aria-label="Close support conversation">&times;</button>
         </div>
         <p class="te-support-share"><a href="/customer/support_access.php">Share a trip with support</a> (optional, read-only)</p>
         <div id="te-support-messages" class="te-chat-messages"></div>
         <form id="te-support-form" class="te-chat-form">
             <?= csrf_field() ?>
-            <input type="text" id="te-support-input" placeholder="Type a message..." autocomplete="off" maxlength="1000" required>
+            <input type="text" id="te-support-input" aria-label="Message support staff" placeholder="Type a message..." autocomplete="off" maxlength="1000" required>
             <button type="submit">Send</button>
         </form>
     </div>

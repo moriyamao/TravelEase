@@ -38,7 +38,7 @@ try {
     exit;
 
 } catch (PDOException $e) {
-    error_log('TravelEase: resolve escalation failed: ' . $e->getMessage());
+    error_log('TravelEase: resolve escalation failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     header('Location: /staff/escalations.php');
     exit;
 }

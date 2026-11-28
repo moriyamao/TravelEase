@@ -946,7 +946,12 @@ $planOpen = $recommendations || $recommendationError;
         </div>
     </main>
 
-    <?php require __DIR__ . '/../../includes/partials/chat_widget.php'; ?>
+    <?php
+    // Lets the assistant answer status questions about this trip. Only the id
+    // is sent; the server re-checks access on every message.
+    $__chatTripId = (int) $tripId;
+    require __DIR__ . '/../../includes/partials/chat_widget.php';
+    ?>
     <?php require __DIR__ . '/../../includes/partials/support_chathead.php'; ?>
     <?php require __DIR__ . '/../../includes/partials/support_launcher.php'; ?>
     <script src="/assets/js/trip-page.js" defer></script>

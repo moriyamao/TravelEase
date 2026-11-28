@@ -56,6 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
+        foreach (['name', 'destination', 'start_date', 'end_date', 'status',
+                  'budget_currency', 'budget_amount', 'notes'] as $field) {
+            if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+                http_response_code(400);
+                exit('Invalid form input. Reload the page and try again.');
+            }
+        }
         $name        = trim($_POST['name'] ?? '');
         $destination = trim($_POST['destination'] ?? '');
         $startDate   = trim($_POST['start_date'] ?? '');
@@ -173,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
-                error_log('TravelEase: trip update failed: ' . $e->getMessage());
+                error_log('TravelEase: trip update failed (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
                 $errors[] = 'Something went wrong while saving your changes. Please try again.';
             }
         }

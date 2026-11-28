@@ -34,6 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
+        // Form fields must be plain strings; an array (field[]=x) is rejected
+        // instead of reaching trim() as a TypeError.
+        foreach (['name'] as $field) {
+            if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+                http_response_code(400);
+                exit('Invalid form input. Reload the page and try again.');
+            }
+        }
         $name = trim($_POST['name'] ?? '');
 
         if ($err = validate_display_name($name)) {
@@ -90,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = true;
 
             } catch (PDOException $e) {
-                error_log('TravelEase: profile update failed: ' . $e->getMessage());
+                error_log('TravelEase: profile update failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
                 $errors[] = 'Something went wrong while saving your profile. Please try again.';
             }
         }

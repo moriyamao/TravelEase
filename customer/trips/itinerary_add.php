@@ -42,6 +42,14 @@ if (!$trip) {
     die('Trip not found.');
 }
 
+// Form fields must be plain strings; an array (field[]=x) is rejected
+// instead of reaching trim() as a TypeError.
+foreach (['item_date', 'item_time', 'title', 'location', 'notes', 'estimated_cost', 'actual_cost'] as $field) {
+    if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+        http_response_code(400);
+        exit('Invalid form input. Reload the page and try again.');
+    }
+}
 $itemDate     = trim($_POST['item_date'] ?? '');
 $itemTime     = trim($_POST['item_time'] ?? '');
 $title        = trim($_POST['title'] ?? '');
@@ -133,7 +141,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log('TravelEase: itinerary item creation failed: ' . $e->getMessage());
+    error_log('TravelEase: itinerary item creation failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     $_SESSION['itinerary_errors'] = ['Something went wrong while saving. Please try again.'];
     header('Location: /customer/trips/view.php?id=' . $tripId);
     exit;

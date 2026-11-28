@@ -27,10 +27,16 @@ function list_trip_share_links(PDO $pdo, int $tripId): array
     return $stmt->fetchAll();
 }
 
-/** Shared across sessions and all tokens. Do not trust client-supplied proxy headers. */
-function reserve_trip_share_access(PDO $pdo, string $ip): int
+/**
+ * Per-visitor limit shared across sessions and all tokens. Pass client_ip(), which follows
+ * CLIENT_IP_SOURCE; null (no trustworthy address) skips the limit instead of charging a shared bucket.
+ */
+function reserve_trip_share_access(PDO $pdo, ?string $ip): int
 {
-    $hash = hash('sha256', filter_var($ip, FILTER_VALIDATE_IP) ? $ip : 'unknown');
+    if ($ip === null || filter_var($ip, FILTER_VALIDATE_IP) === false) {
+        return 0;
+    }
+    $hash = hash('sha256', $ip);
     // Bounded, indexed cleanup outside the reservation transaction.
     $pdo->exec('DELETE FROM trip_share_access_limits WHERE window_started < UTC_TIMESTAMP() - INTERVAL 1 DAY LIMIT 100');
     $pdo->beginTransaction();

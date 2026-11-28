@@ -135,7 +135,7 @@ $renderFields = function () use ($e, $field, $editing): void {
         <p class="eyebrow"><?= $e($trip['name']) ?> &middot; <?= $e($trip['destination']) ?></p>
         <?php if ($notice): ?><p class="form-notice" role="status"><?= $e($notice) ?></p><?php endif; ?>
         <?php if ($error): ?><p class="form-errors" role="alert"><?= $e($error) ?></p><?php endif; ?>
-        <p class="reference-note">Keep flight, hotel and tour booking details here. Attachments accept PDF, JPEG or PNG up to 2 MB and follow the booking's visibility. Downloads are files, not safety or authenticity checks.</p>
+        <p class="reference-note">Record details of bookings you made elsewhere, such as flights, hotels and tours. TravelEase does not make or confirm reservations. Attachments accept PDF, JPEG or PNG up to 2 MB and follow the booking's visibility. Downloads are files, not safety or authenticity checks.</p>
 
         <?php if ($canEdit && $editing): ?>
         <section class="reference-card" aria-labelledby="edit-heading" id="edit">

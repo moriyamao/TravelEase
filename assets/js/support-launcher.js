@@ -20,12 +20,19 @@
         button.setAttribute('aria-expanded', 'false');
     }
 
+    // Direct mode: keep aria-expanded in step with the assistant panel however
+    // it opens or closes (launcher, its own close button, or the staff chat).
+    var directPanel = button.getAttribute('data-single-target') ? document.getElementById('te-chat-panel') : null;
+    if (directPanel) {
+        new MutationObserver(function () {
+            button.setAttribute('aria-expanded', directPanel.hidden ? 'false' : 'true');
+        }).observe(directPanel, { attributes: true, attributeFilter: ['hidden'] });
+    }
+
     button.addEventListener('click', function () {
         var single = button.getAttribute('data-single-target');
         if (single) {
             openWidget(single);
-            var panel = document.getElementById('te-chat-panel');
-            button.setAttribute('aria-expanded', panel && !panel.hidden ? 'true' : 'false');
             return;
         }
         var opening = menu.hidden;
@@ -52,6 +59,13 @@
         if (event.key === 'Escape' && !menu.hidden) {
             closeMenu();
             button.focus();
+        }
+    });
+    // Tabbing out of the launcher closes the menu instead of leaving it open
+    // over the page. relatedTarget is null when focus leaves the document.
+    document.getElementById('te-launcher').addEventListener('focusout', function (event) {
+        if (!menu.hidden && event.relatedTarget && !event.relatedTarget.closest('#te-launcher')) {
+            closeMenu();
         }
     });
     document.addEventListener('click', function (event) {

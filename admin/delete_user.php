@@ -64,7 +64,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log('TravelEase: admin user delete failed: ' . $e->getMessage());
+    error_log('TravelEase: admin user delete failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     $_SESSION['admin_errors'] = ['Something went wrong while deleting the account. Please try again.'];
     header('Location: /admin/dashboard.php');
     exit;

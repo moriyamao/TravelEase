@@ -42,6 +42,9 @@ function validate_date_format(string $date, string $fieldLabel): ?string
         return "{$fieldLabel} is required.";
     }
 
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/D', $date) !== 1) {
+        return "{$fieldLabel} must be a valid date.";
+    }
     $parsed = DateTime::createFromFormat('Y-m-d', $date);
     $errors = DateTime::getLastErrors();
 

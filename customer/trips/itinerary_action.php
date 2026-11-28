@@ -123,7 +123,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log('TravelEase: itinerary action failed: ' . $e->getMessage());
+    error_log('TravelEase: itinerary action failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     http_response_code(500);
     die('Something went wrong. Please try again.');
 }

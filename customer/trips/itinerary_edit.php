@@ -20,7 +20,7 @@ $pdo = get_db_connection();
 
 $stmt = $pdo->prepare(
     'SELECT i.id, i.trip_id, i.item_date, i.item_time, i.end_time, i.title, i.location, i.notes,
-            i.estimated_cost, i.actual_cost, i.category, i.assignee_id,
+            i.estimated_cost, i.actual_cost, i.category, i.assignee_id, i.version,
             t.start_date AS trip_start, t.end_date AS trip_end, t.name AS trip_name,
             t.budget_currency
      FROM itinerary_items i
@@ -50,6 +50,9 @@ $actual    = $item['actual_cost'] !== null ? (string) $item['actual_cost'] : '';
 $endTime   = $item['end_time'] !== null ? substr($item['end_time'], 0, 5) : '';
 $category  = $item['category'] ?? '';
 $assigneeRaw = $item['assignee_id'] !== null ? (string) $item['assignee_id'] : '';
+$formVersion = (string) $item['version'];
+$submittedVersion = (int) $item['version'];
+$staleConflict = false;
 
 // Assignee choices: current customer members, plus the current assignee
 // if they have since left (kept as a historical assignment).
@@ -73,9 +76,23 @@ if ($item['assignee_id'] !== null && !in_array((int) $item['assignee_id'], array
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
+    // Preserve exactly what this form submitted on ordinary error re-renders.
+    // Only the explicit 409 path below advances it to the current version.
+    $formVersion = is_string($_POST['version'] ?? null) ? trim($_POST['version']) : '';
+    $parsedVersion = filter_var($formVersion, FILTER_VALIDATE_INT,
+        ['options' => ['min_range' => 1, 'max_range' => 4294967295]]);
+    $submittedVersion = $parsedVersion === false ? 0 : (int) $parsedVersion;
+
     if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
+        foreach (['item_date', 'item_time', 'title', 'location', 'notes',
+                  'estimated_cost', 'actual_cost'] as $field) {
+            if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+                http_response_code(400);
+                exit('Invalid form input. Reload the page and try again.');
+            }
+        }
         $itemDate  = trim($_POST['item_date'] ?? '');
         $itemTime  = trim($_POST['item_time'] ?? '');
         $title     = trim($_POST['title'] ?? '');
@@ -127,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Re-read the activity under the lock (it may have been
                 // deleted or changed since this form was opened).
                 $stmt = $pdo->prepare(
-                    'SELECT item_date, assignee_id, sort_order FROM itinerary_items
+                    'SELECT item_date, assignee_id, sort_order, version FROM itinerary_items
                      WHERE id = :id AND trip_id = :trip_id FOR UPDATE'
                 );
                 $stmt->execute(['id' => $itemId, 'trip_id' => $item['trip_id']]);
@@ -136,6 +153,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->rollBack();
                     http_response_code(404);
                     die('Item not found.');
+                }
+
+                if ($submittedVersion !== (int) $current['version']) {
+                    $formVersion = (string) $current['version'];
+                    $staleConflict = true;
+                    http_response_code(409);
+                    throw new DomainException(
+                        'This activity changed after you opened it. Your changes were not saved. '
+                        . 'Save again to replace the current version, or load the latest version.'
+                    );
                 }
 
                 // A new assignee must be a current customer member. Keeping
@@ -157,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              title = :title, location = :location, category = :category,
                              assignee_id = :assignee_id, sort_order = :sort_order, notes = :notes,
                              estimated_cost = :estimated_cost, actual_cost = :actual_cost
-                         WHERE id = :id AND trip_id = :trip_id'
+                         WHERE id = :id AND trip_id = :trip_id AND version = :version'
                     );
                     $stmt->execute([
                         'item_date'      => $itemDate,
@@ -173,9 +200,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'actual_cost'    => $actual !== '' ? $actual : null,
                         'id'             => $itemId,
                         'trip_id'        => $item['trip_id'],
+                        'version'        => $submittedVersion,
                     ]);
                     // Log only a real change (0 rows = nothing changed).
                     if ($stmt->rowCount() > 0) {
+                        $bump = $pdo->prepare(
+                            'UPDATE itinerary_items SET version = version + 1, updated_at = updated_at
+                             WHERE id = :id AND trip_id = :trip_id'
+                        );
+                        $bump->execute(['id' => $itemId, 'trip_id' => $item['trip_id']]);
+                        if ($bump->rowCount() !== 1) {
+                            throw new RuntimeException('Itinerary version bump did not update exactly one row.');
+                        }
                         log_trip_activity($pdo, (int) $item['trip_id'], 'activity_updated', null, $title);
                     }
                     $pdo->commit();
@@ -187,11 +223,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (DomainException $e) {
                 $pdo->rollBack();
                 $errors[] = $e->getMessage();
-            } catch (PDOException $e) {
+            } catch (RuntimeException $e) {
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
-                error_log('TravelEase: itinerary item update failed: ' . $e->getMessage());
+                error_log('TravelEase: itinerary item update failed (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
                 $errors[] = 'Something went wrong while saving. Please try again.';
             }
         }
@@ -229,6 +265,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form method="post" action="/customer/trips/itinerary_edit.php?id=<?= (int) $itemId ?>" novalidate>
                 <?= csrf_field() ?>
                 <input type="hidden" name="id" value="<?= (int) $itemId ?>">
+                <input type="hidden" name="version" value="<?= htmlspecialchars($formVersion, ENT_QUOTES, 'UTF-8') ?>">
+
+                <?php if ($staleConflict): ?>
+                    <p><a href="/customer/trips/itinerary_edit.php?id=<?= (int) $itemId ?>">Load the latest version instead</a></p>
+                <?php endif; ?>
 
                 <label for="title">Title</label>
                 <input type="text" id="title" name="title" required maxlength="150"
@@ -300,7 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="notes">Notes (optional)</label>
                 <textarea id="notes" name="notes" rows="3" maxlength="2000"><?= htmlspecialchars($notes, ENT_QUOTES, 'UTF-8') ?></textarea>
 
-                <button type="submit">Save Changes</button>
+                <button type="submit"><?= $staleConflict ? 'Save changes again' : 'Save Changes' ?></button>
             </form>
         </div>
     </main>

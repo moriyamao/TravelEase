@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/trip_membership.php';
 require_once __DIR__ . '/../../includes/trip_activity.php';
 require_once __DIR__ . '/../../includes/trip_shares.php';
+require_once __DIR__ . '/../../includes/rate_limit.php';
 require_role(['customer']);
 header('Cache-Control: no-store');
 header('Referrer-Policy: no-referrer');
@@ -19,7 +20,7 @@ if (!valid_trip_share_token($token)) { http_response_code(404); exit('This link 
 $pdo = get_db_connection();
 $me = (int) current_user_id();
 try {
-    $wait = reserve_trip_share_access($pdo, $_SERVER['REMOTE_ADDR'] ?? '');
+    $wait = reserve_trip_share_access($pdo, client_ip());
     if ($wait) { header('Retry-After: ' . $wait); http_response_code(429); exit('Too many requests. Try again shortly.'); }
     $pdo->beginTransaction();
     $share = load_trip_share($pdo, $token, true);

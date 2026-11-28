@@ -7,19 +7,22 @@
  */
 $__chatUserName  = $_SESSION['user_name']  ?? '';
 $__chatUserEmail = $_SESSION['user_email'] ?? '';
+// Optional: a page about one trip sets $__chatTripId before including this.
+$__chatTripAttr = isset($__chatTripId) && is_int($__chatTripId) && $__chatTripId > 0
+    ? ' data-trip-id="' . $__chatTripId . '"' : '';
 ?>
-<div id="te-chat-widget" class="te-chat-widget" data-user-name="<?= htmlspecialchars($__chatUserName, ENT_QUOTES, 'UTF-8') ?>" data-user-email="<?= htmlspecialchars($__chatUserEmail, ENT_QUOTES, 'UTF-8') ?>">
+<div id="te-chat-widget" class="te-chat-widget" data-user-name="<?= htmlspecialchars($__chatUserName, ENT_QUOTES, 'UTF-8') ?>" data-user-email="<?= htmlspecialchars($__chatUserEmail, ENT_QUOTES, 'UTF-8') ?>"<?= $__chatTripAttr ?>>
     <button id="te-chat-toggle" class="te-chat-toggle" type="button" aria-label="Open the TravelEase assistant" hidden>💬</button>
 
-    <div id="te-chat-panel" class="te-chat-panel" hidden>
+    <div id="te-chat-panel" class="te-chat-panel" role="region" aria-label="TravelEase assistant" hidden>
         <div class="te-chat-header">
             <span>TravelEase assistant <small class="te-chat-tag">AI</small></span>
             <button id="te-chat-close" type="button" aria-label="Close chat">&times;</button>
         </div>
-        <div id="te-chat-messages" class="te-chat-messages"></div>
+        <div id="te-chat-messages" class="te-chat-messages" role="log" aria-live="polite"></div>
         <form id="te-chat-form" class="te-chat-form">
             <?= csrf_field() ?>
-            <input type="text" id="te-chat-input" placeholder="Ask a question..." autocomplete="off" maxlength="1000" required>
+            <input type="text" id="te-chat-input" aria-label="Message the TravelEase assistant" placeholder="Ask a question..." autocomplete="off" maxlength="1000" required>
             <button type="submit">Send</button>
         </form>
         <p class="te-chat-disclaimer">

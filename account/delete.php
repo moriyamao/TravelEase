@@ -15,6 +15,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/account_privacy.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 
 require_role(['customer']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -28,7 +29,20 @@ if (!is_string($token) || !csrf_verify($token)) {
     exit('Your session expired. Reload the page and try again.');
 }
 
-$fail = function (string $message): void {
+// Re-check limit (shared with Google linking): every attempt reserves a slot
+// before the password check; only a wrong password keeps it. The refund runs
+// in $fail, after any rollback, so it is never undone with the transaction.
+$pdo = null;
+$reauthKey = $reauthWindow = null;
+$passwordFailed = false;
+$fail = function (string $message) use (&$pdo, &$reauthKey, &$reauthWindow, &$passwordFailed): void {
+    if ($pdo !== null && !$passwordFailed) {
+        try {
+            rate_limit_refund($pdo, $reauthKey, $reauthWindow);
+        } catch (PDOException $e) {
+            error_log('TravelEase: account re-check refund unavailable (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
+        }
+    }
     $_SESSION['account_error'] = $message;
     header('Location: /profile.php#delete-account');
     exit;
@@ -43,6 +57,17 @@ if (!is_string($confirm) || trim($confirm) !== 'DELETE' || !is_string($password)
 $pdo = get_db_connection();
 $userId = (int) current_user_id();
 $picture = null;
+$reauthKey = rate_limit_key('reauth_user', (string) $userId);
+try {
+    $reauthWait = rate_limit_reserve($pdo, $reauthKey, REAUTH_MAX_FAILURES, REAUTH_WINDOW_SECONDS, $reauthWindow);
+} catch (PDOException $e) {
+    $reauthKey = $reauthWindow = null;
+    error_log('TravelEase: account re-check unavailable (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
+    $fail('Could not delete your account. Nothing was changed. Please try again.');
+}
+if ($reauthWait > 0) {
+    $fail('Too many password attempts. Please wait about ' . max(1, (int) ceil($reauthWait / 60)) . ' minutes and try again.');
+}
 try {
     $pdo->beginTransaction();
     $stmt = $pdo->prepare('SELECT role, password_hash, profile_picture FROM users WHERE id = :id FOR UPDATE');
@@ -56,6 +81,7 @@ try {
     if ($user['password_hash'] !== null) {
         if ($password === '' || !password_verify($password, $user['password_hash'])) {
             $pdo->rollBack();
+            $passwordFailed = $password !== '';   // an empty field is not a guess
             $fail('That password is not correct.');
         }
     } elseif ((int) ($_SESSION['authenticated_at'] ?? 0) < time() - 600) {

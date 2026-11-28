@@ -30,7 +30,7 @@ const CHAT_HARD_ESCALATE_KEYWORDS = [
  * Ask the AI to respond to a customer message.
  * Returns ['reply' => string, 'escalate' => bool].
  */
-function ask_ai(string $message): array
+function ask_ai(string $message, ?array $tripSnapshot = null): array
 {
     $lower = mb_strtolower($message);
 
@@ -41,6 +41,19 @@ function ask_ai(string $message): array
                 'escalate' => true,
             ];
         }
+    }
+
+    // Saved planning facts are answered locally; no trip snapshot goes to Groq.
+    $howTo = preg_match('/\b(how|can i|could i|change|edit|update|add|mark|set|delete|remove|archive|restore)\b/i', $message);
+    if ($tripSnapshot !== null && !$howTo && preg_match('/\b(status|dates?|time\s?zone|archived?|completed?|done|progress)\b|\bwhen\b.*\btrip\b|\btrip\b.*\bwhen\b/i', $message)) {
+        $status = ucfirst((string) $tripSnapshot['status']);
+        $reply = 'Saved trip status: ' . $status
+            . '. This is a planning status in TravelEase, not a confirmed booking or live location. '
+            . 'Saved dates: ' . $tripSnapshot['start_date'] . ' to ' . $tripSnapshot['end_date']
+            . ' (' . $tripSnapshot['time_zone'] . '). '
+            . (int) $tripSnapshot['activity_done'] . ' of ' . (int) $tripSnapshot['activity_total']
+            . ' activities marked completed. Archived: ' . ((int) $tripSnapshot['archived'] ? 'yes' : 'no') . '.';
+        return ['reply' => $reply, 'escalate' => false];
     }
 
     $apiKey = getenv('GROQ_API_KEY');
@@ -93,7 +106,20 @@ PROMPT;
         'temperature' => 0.3,
     ]);
 
-    $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+    $url = 'https://api.groq.com/openai/v1/chat/completions';
+    $override = getenv('GROQ_API_URL') ?: '';
+    if ($override !== '') {
+        $parts = parse_url($override);
+        if (!is_array($parts) || !in_array(PHP_SAPI, ['cli', 'cli-server'], true)
+            || ($parts['scheme'] ?? '') !== 'http'
+            || !in_array($parts['host'] ?? '', ['127.0.0.1', 'localhost'], true)
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+            || !in_array($parts['path'] ?? '', ['', '/'], true)) {
+            return ['reply' => 'The assistant is unavailable right now. Please try again later.', 'escalate' => false];
+        }
+        $url = rtrim($override, '/') . '/openai/v1/chat/completions';
+    }
+    $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,

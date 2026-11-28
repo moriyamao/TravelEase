@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 } catch (PDOException $exception) {
                     if ($pdo->inTransaction()) $pdo->rollBack();
-                    error_log('TravelEase: planning draft save failed: ' . $exception->getMessage());
+                    error_log('TravelEase: planning draft save failed (database code ' . (int) ($exception->errorInfo[1] ?? 0) . ').');
                     $errors[] = 'Your plan could not be saved. Please try again.';
                 }
             }

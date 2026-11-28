@@ -1,4 +1,5 @@
 FROM php:8.2-apache
+COPY docker/php-production.ini /usr/local/etc/php/conf.d/travelease-production.ini
 
 # libcurl headers needed to build the curl extension below
 RUN apt-get update && apt-get install -y --no-install-recommends libcurl4-openssl-dev \

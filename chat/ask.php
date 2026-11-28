@@ -17,6 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
+if (!is_array($input)) {
+    http_response_code(400);
+    exit(json_encode(['error' => 'Invalid request.']));
+}
 
 if (!csrf_verify($input['csrf_token'] ?? null)) {
     http_response_code(403);
@@ -41,7 +45,7 @@ if ($chatWait > 0) {
     exit;
 }
 
-$message = trim((string) ($input['message'] ?? ''));
+$message = is_string($input['message'] ?? null) ? trim($input['message']) : '';
 
 if ($message === '') {
     http_response_code(400);
@@ -55,7 +59,47 @@ if (mb_strlen($message) > 1000) {
     exit;
 }
 
-$result = ask_ai($message);
+$tripSnapshot = null;
+if (array_key_exists('trip_id', $input)) {
+    $rawTripId = $input['trip_id'];
+    $tripId = (is_int($rawTripId) || is_string($rawTripId))
+        ? filter_var($rawTripId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 4294967295]])
+        : false;
+    if ($tripId === false) {
+        http_response_code(400);
+        exit(json_encode(['error' => 'Invalid trip.']));
+    }
+    try {
+        // Authorize and read only the allowlisted facts in one current query.
+        $stmt = get_db_connection()->prepare(
+            'SELECT u.role, t.status, t.start_date, t.end_date, t.time_zone,
+                    t.archived_at IS NOT NULL AS archived,
+                    (SELECT COUNT(*) FROM itinerary_items i WHERE i.trip_id=t.id) AS activity_total,
+                    (SELECT COUNT(*) FROM itinerary_items i WHERE i.trip_id=t.id AND i.completed_at IS NOT NULL) AS activity_done
+             FROM users u LEFT JOIN trips t ON t.id=:trip AND
+                 (t.user_id=u.id OR EXISTS (SELECT 1 FROM trip_memberships m
+                  WHERE m.trip_id=t.id AND m.user_id=u.id AND m.role IN (\'editor\',\'commenter\',\'viewer\')))
+             WHERE u.id=:user'
+        );
+        $stmt->execute(['trip' => $tripId, 'user' => current_user_id()]);
+        $snapshot = $stmt->fetch();
+        if (!$snapshot || $snapshot['role'] !== 'customer') {
+            http_response_code(403);
+            exit(json_encode(['error' => 'Trip context is available to customer trip members only.']));
+        }
+        if ($snapshot['status'] === null) {
+            http_response_code(404);
+            exit(json_encode(['error' => 'Trip not found.']));
+        }
+        unset($snapshot['role']);
+        $tripSnapshot = $snapshot;
+    } catch (PDOException $e) {
+        error_log('TravelEase: chat trip snapshot unavailable (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
+        http_response_code(503);
+        exit(json_encode(['error' => 'Trip information is unavailable right now. Please try again later.']));
+    }
+}
+$result = ask_ai($message, $tripSnapshot);
 
 // Commit the support conversation before acknowledging the handoff.
 // The client may also send an optional EmailJS notification after success.
@@ -109,7 +153,7 @@ if ($result['escalate']) {
         if ($pdo !== null && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        error_log('TravelEase: failed to record escalation: ' . $e->getMessage());
+        error_log('TravelEase: failed to record escalation (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
         http_response_code(503);
         header('Retry-After: 5');
         echo json_encode(['error' => 'Your support message could not be saved. Please try again in a moment.']);

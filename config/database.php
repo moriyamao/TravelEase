@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/database_options.php';
 require_once __DIR__ . '/../includes/timing.php';
 
 function get_db_connection(): PDO
@@ -24,19 +25,19 @@ function get_db_connection(): PDO
 
     $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
-    $options = [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false, // use real prepared statements
-    ];
-    // Opt-in diagnostics (APP_TIMING=1): time connect, setup and every query.
-    $timing = request_timing_enabled();
-    if ($timing) {
-        $options[PDO::ATTR_STATEMENT_CLASS] = [TimedPDOStatement::class];
-        RequestTiming::register();
-    }
-
     try {
+        $options = database_pdo_options([
+            'APP_ENV' => getenv('APP_ENV'),
+            'DB_SSL_CA_FILE' => getenv('DB_SSL_CA_FILE'),
+        ]);
+
+        // Opt-in diagnostics (APP_TIMING=1): time connect, setup and every query.
+        $timing = request_timing_enabled();
+        if ($timing) {
+            $options[PDO::ATTR_STATEMENT_CLASS] = [TimedPDOStatement::class];
+            RequestTiming::register();
+        }
+
         $connectStart = microtime(true);
         $pdo = $timing ? new TimedPDO($dsn, $user, $pass, $options) : new PDO($dsn, $user, $pass, $options);
         $setupStart = microtime(true);
@@ -69,9 +70,15 @@ function get_db_connection(): PDO
             RequestTiming::$counts['other'] = 0;
             RequestTiming::$times['other'] = 0.0;
         }
-    } catch (PDOException $e) {
+    } catch (RuntimeException $e) {
         // Never leak DB connection details to the browser (§39 — Error Handling).
-        error_log('TravelEase DB connection failed: ' . $e->getMessage());
+        if ($e instanceof PDOException) {
+            error_log('TravelEase DB connection failed (driver ['
+                . (int) ($e->errorInfo[1] ?? 0) . ']).');
+        } else {
+            // The options helper emits fixed configuration categories only.
+            error_log('TravelEase DB connection failed: ' . $e->getMessage());
+        }
         http_response_code(500);
         die('Something went wrong. Please try again later.');
     }
