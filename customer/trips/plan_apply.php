@@ -98,7 +98,8 @@ try {
     $sortOrder = $to['date'] === $item['item_date'] ? (int) $item['sort_order']
         : itinerary_next_sort_order($pdo, $tripId, $to['date'], (int) $item['id']);
     $stmt = $pdo->prepare('UPDATE itinerary_items
-                           SET item_date = :item_date, item_time = :item_time, end_time = :end_time, sort_order = :sort_order
+                           SET item_date = :item_date, item_time = :item_time, end_time = :end_time,
+                               sort_order = :sort_order, version = version + 1
                            WHERE id = :id AND trip_id = :trip');
     $stmt->execute([
         'item_date' => $to['date'], 'item_time' => $to['time'] !== '' ? $to['time'] : null,

@@ -37,7 +37,7 @@ try {
     exit;
 
 } catch (PDOException $e) {
-    error_log('TravelEase: trip deletion failed: ' . $e->getMessage());
+    error_log('TravelEase: trip deletion failed (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     http_response_code(500);
     die('Something went wrong while deleting your trip. Please try again.');
 }

@@ -24,7 +24,7 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 }
 
 $credential = $_POST['credential'] ?? '';
-if ($credential === '') {
+if (!is_string($credential) || $credential === '') {
     fail(400, 'Missing sign-in credential.');
 }
 
@@ -97,7 +97,7 @@ try {
     echo json_encode(['redirect' => '/includes/redirect_dashboard.php']);
 
 } catch (PDOException $e) {
-    error_log('TravelEase: Google login DB error: ' . $e->getMessage());
+    error_log('TravelEase: Google login DB error (code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
     fail(500, 'Something went wrong while signing you in. Please try again.');
 }
 

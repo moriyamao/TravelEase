@@ -51,13 +51,13 @@ function validate_trip_reference(array $input): array
         }
     }
     if ($values['title'] === '') {
-        $errors[] = 'A reference title is required.';
+        $errors[] = 'A booking title is required.';
     }
     if (!isset(REFERENCE_KIND_LABELS[$values['kind']])) {
-        $errors[] = 'Choose a valid reference type.';
+        $errors[] = 'Choose a valid booking type.';
     }
     if (!isset(REFERENCE_VISIBILITY_LABELS[$values['visibility']])) {
-        $errors[] = 'Choose who can view this reference.';
+        $errors[] = 'Choose who can view this booking.';
     }
     if (!in_array($values['status'], ['pending', 'confirmed'], true)) {
         $errors[] = 'Choose pending or confirmed.';
@@ -79,7 +79,7 @@ function validate_trip_reference(array $input): array
     if ($url !== '' && (strlen($url) > 2048 || !filter_var($url, FILTER_VALIDATE_URL)
         || strtolower((string) parse_url($url, PHP_URL_SCHEME)) !== 'https'
         || parse_url($url, PHP_URL_USER) !== null || parse_url($url, PHP_URL_PASS) !== null)) {
-        $errors[] = 'Enter a valid HTTPS reference link without a username or password.';
+        $errors[] = 'Enter a valid HTTPS booking link without a username or password.';
     }
     return ['values' => $values, 'errors' => $errors];
 }

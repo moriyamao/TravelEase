@@ -29,6 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
+        // Form fields must be plain strings; an array (field[]=x) is rejected
+        // instead of reaching trim()/password_verify() as a TypeError.
+        foreach (['email', 'password'] as $field) {
+            if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+                http_response_code(400);
+                exit('Invalid form input. Reload the page and try again.');
+            }
+        }
         $email    = normalize_email($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $pdo = get_db_connection();

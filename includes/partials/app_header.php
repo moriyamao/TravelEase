@@ -20,7 +20,6 @@ $navUnread = $navRole === 'customer' ? (int) ($unreadNotifications ?? 0) : 0;
 $navItems = [
     'customer' => [
         'trips' => ['/customer/dashboard.php', 'My trips'],
-        'archived' => ['/customer/dashboard.php?archived=1', 'Archived'],
         'notifications' => ['/customer/notifications.php', 'Notifications'],
         'profile' => ['/profile.php', 'Profile'],
     ],

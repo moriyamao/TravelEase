@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/trip_shares.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('Referrer-Policy: no-referrer');
@@ -19,7 +20,7 @@ $token = $_POST['token'] ?? null;
 if (!valid_trip_share_token($token)) { http_response_code(404); exit('{"error":"This link is unavailable or has expired."}'); }
 $pdo = get_db_connection();
 try {
-    $wait = reserve_trip_share_access($pdo, $_SERVER['REMOTE_ADDR'] ?? '');
+    $wait = reserve_trip_share_access($pdo, client_ip());
     if ($wait) { header('Retry-After: ' . $wait); http_response_code(429); exit('{"error":"Too many requests. Try again shortly."}'); }
     $pdo->beginTransaction();
     $share = load_trip_share($pdo, $token);

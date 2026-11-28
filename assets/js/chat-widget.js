@@ -18,6 +18,12 @@
 
     const userName  = widget.dataset.userName  || 'TravelEase user';
     const userEmail = widget.dataset.userEmail || '';
+    // Set only on a trip page: the id lets the server answer status questions
+    // about that trip (it re-checks access each time). Anything that is not a
+    // plain positive id is ignored, so general support is unchanged.
+    const rawTripId = widget.dataset.tripId || '';
+    const tripId = /^[1-9][0-9]{0,9}$/.test(rawTripId) && Number(rawTripId) <= 4294967295
+        ? Number(rawTripId) : null;
 
     toggle.addEventListener('click', () => {
         // Close the support conversation panel first, if it's open, so
@@ -28,7 +34,30 @@
         panel.hidden = !panel.hidden;
         if (!panel.hidden) input.focus();
     });
-    closeBtn.addEventListener('click', () => { panel.hidden = true; });
+
+    // Non-modal panel: closing it (close button or Escape) returns focus to
+    // the Help launcher, so keyboard users are not dropped at the page top.
+    function closePanel() {
+        panel.hidden = true;
+        const launcher = document.getElementById('te-launcher-button');
+        if (launcher) launcher.focus();
+    }
+    closeBtn.addEventListener('click', closePanel);
+    panel.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closePanel();
+        }
+    });
+
+    // After a slow reply, refocus the input only if the user is still here:
+    // the panel is open and focus has not moved anywhere else on the page.
+    function restoreInputFocus() {
+        const active = document.activeElement;
+        if (!panel.hidden && (!active || active === document.body || panel.contains(active))) {
+            input.focus();
+        }
+    }
 
     function addMessage(text, sender) {
         const el = document.createElement('div');
@@ -74,7 +103,9 @@
             const res = await fetch('/chat/ask.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message, csrf_token: csrfToken }),
+                body: JSON.stringify(tripId === null
+                    ? { message: message, csrf_token: csrfToken }
+                    : { message: message, csrf_token: csrfToken, trip_id: tripId }),
             });
 
             const data = await res.json();
@@ -96,7 +127,7 @@
             input.value = message;
         } finally {
             input.disabled = false;
-            input.focus();
+            restoreInputFocus();
         }
     });
 })();

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/email_verification.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 
 $errors = [];
 $message = null;
@@ -12,20 +13,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
+        // Form fields must be plain strings; an array (field[]=x) is rejected
+        // instead of reaching normalize_email() as a TypeError.
+        foreach (['email'] as $field) {
+            if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+                http_response_code(400);
+                exit('Invalid form input. Reload the page and try again.');
+            }
+        }
         $email = normalize_email($_POST['email'] ?? '');
         $pdo = get_db_connection();
         $stmt = $pdo->prepare('SELECT id, name, email, email_verified_at FROM users WHERE email = :email LIMIT 1');
         $stmt->execute(['email' => $email]);
         $user = $stmt->fetch();
         if ($user && $user['email_verified_at'] === null) {
-            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
-            if (filter_var($ipAddress, FILTER_VALIDATE_IP) === false) {
-                $ipAddress = '0.0.0.0';
-            }
-            if (reserve_email_verification_resend($pdo, (int) $user['id'], $ipAddress)
-                && !send_email_verification($pdo, (int) $user['id'], $user['email'], $user['name'])) {
-                // Delivery failed: free the 60-second window so an immediate retry is possible.
-                release_email_verification_resend($pdo, (int) $user['id'], $ipAddress);
+            $key = rate_limit_key('resend_user', (string) $user['id']);
+            $window = null;
+            try {
+                if (rate_limit_reserve($pdo, $key, 3, 3600, $window) === 0) {
+                    $ipAddress = client_ip() ?? '0.0.0.0';
+                    if (!reserve_email_verification_resend($pdo, (int) $user['id'], $ipAddress)) {
+                        rate_limit_refund($pdo, $key, $window);
+                    } elseif (!send_email_verification($pdo, (int) $user['id'], $user['email'], $user['name'])) {
+                        release_email_verification_resend($pdo, (int) $user['id'], $ipAddress);
+                        rate_limit_refund($pdo, $key, $window);
+                    }
+                }
+            } catch (PDOException $e) {
+                error_log('TravelEase: verification resend unavailable (database code ' . (int) ($e->errorInfo[1] ?? 0) . ').');
             }
         }
         // Identical for every outcome so this page never reveals whether an account exists.

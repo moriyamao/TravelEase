@@ -19,9 +19,9 @@ function csrf_field(): string
     return "<input type=\"hidden\" name=\"csrf_token\" value=\"{$token}\">";
 }
 
-function csrf_verify(?string $submittedToken): bool
+function csrf_verify(mixed $submittedToken): bool
 {
-    if (empty($_SESSION['csrf_token']) || empty($submittedToken)) {
+    if (!is_string($submittedToken) || empty($_SESSION['csrf_token']) || empty($submittedToken)) {
         return false;
     }
 

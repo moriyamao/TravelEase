@@ -9,6 +9,14 @@
  * Table: rate_limits (migration 029).
  */
 
+/**
+ * Password re-checks for a signed-in account (account deletion, Google
+ * linking) share one per-account bucket: 5 wrong passwords in 15 minutes.
+ * A stolen session must not become an unlimited password-guessing oracle.
+ */
+const REAUTH_WINDOW_SECONDS = 900;
+const REAUTH_MAX_FAILURES = 5;
+
 function rate_limit_key(string $bucket, string $subject): string
 {
     return hash('sha256', $bucket . '|' . $subject);

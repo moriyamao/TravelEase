@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
     category        ENUM('sightseeing', 'food', 'transport', 'lodging', 'activity', 'shopping', 'other') NULL,
     assignee_id     INT UNSIGNED        NULL,
     sort_order      INT UNSIGNED        NOT NULL DEFAULT 0,
+    version         INT UNSIGNED        NOT NULL DEFAULT 1,
     notes           TEXT                NULL,
     estimated_cost  DECIMAL(10,2)       NULL,
     actual_cost     DECIMAL(10,2)       NULL,
@@ -192,6 +193,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
     CONSTRAINT fk_itinerary_completed_by
         FOREIGN KEY (completed_by) REFERENCES users(id)
         ON DELETE SET NULL,
+    CONSTRAINT chk_itinerary_items_version CHECK (version > 0),
 
     INDEX idx_itinerary_place (place_id),
     INDEX idx_itinerary_trip_id (trip_id),
@@ -206,7 +208,8 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
 -- actual_cost (both all-in amounts, tax included, no separate tax
 -- column -- see that migration's notes), and
 -- database/migration_018_add_itinerary_activity_fields.sql for end_time,
--- category, assignee_id, sort_order, completed_at and completed_by (FR-19)
+-- category, assignee_id, sort_order, completed_at and completed_by (FR-19), and
+-- database/migration_030_add_itinerary_item_version.sql for stale-edit protection
 
 -- FR-17 activity slice: votes and comments on itinerary activities.
 -- See database/migration_016_add_itinerary_feedback.sql for the notes.

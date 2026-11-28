@@ -99,7 +99,7 @@ $when = fn($value) => $value === null ? '' : gmdate('M j, Y, H:i', $utc($value))
             <h2 id="about-heading">How share links work</h2>
             <ul class="share-facts">
                 <li><strong>Join link:</strong> someone who opens it, signs in with a verified customer account and confirms, joins this trip as a <strong>Viewer</strong>. You can change their role later. Someone already on the trip keeps their current role.</li>
-                <li><strong>View-only link:</strong> anyone who has the link can see, without signing in, the destination, the trip dates, the time zone and each activity's date, times, title and location. It never shows the trip name, notes, costs, budgets, comments, votes, members, booking references or reminders.</li>
+                <li><strong>View-only link:</strong> anyone who has the link can see, without signing in, the destination, the trip dates, the time zone and each activity's date, times, title and location. It never shows the trip name, notes, costs, budgets, comments, votes, members, bookings or reminders.</li>
                 <li>Anyone who gets a copy of a link can use it until it expires or you revoke it, so share it only with people you trust.</li>
                 <li>Links last 1 or 7 days. A trip can have up to 10 active links.</li>
                 <li>Revoking a link stops it at once. Transferring ownership of this trip or removing a member <strong>revokes all of its links</strong>, so a removed member cannot rejoin with an old link. A member leaving on their own does not revoke links.</li>
